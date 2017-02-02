@@ -65,15 +65,19 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
     }
 
     ## Transition:
-    TypeTransition <- dplyr::select(VarSetup1, Type, Transition)
+    ## TypeTransition <- dplyr::select_(VarSetup1, Type, Transition)
+    TypeTransition <- VarSetup1[, c("Type", "Transition")]
     if (keep){
         save(TypeTransition, file = "TypeTransition.rda")
     }
 
     ## Duration:
-    TypeDuration <- dplyr::filter(VarSetup1, Transition != "End" &
-                                      Duration == "Continuous")
-    TypeDuration <- dplyr::select(TypeDuration, Type)
+    ##TypeDuration <- dplyr::filter(VarSetup1, Transition != "End" &
+      ##                                Duration == "Continuous")
+    TypeDuration <- VarSetup1[with(VarSetup1, Transition != "End" &
+                                       Duration == "Continuous"), ]
+    ##TypeDuration <- dplyr::select(TypeDuration, Type)
+    TypeDuration <- TypeDuration[, c("Type")]
     if (keep){
         save(TypeDuration, file = "TypeDuration.rda")
     }
