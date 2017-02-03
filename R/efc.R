@@ -310,7 +310,7 @@ part5 <- function(ef, save = FALSE){
 
     ## Rectangularisation of time-invariant variables
 
-    ef1 <- dplyr::select(ef, tolower(Transition) == "invariant")
+    ef1 <- dplyr::filter(ef, tolower(Transition) == "invariant")
 
     if (!NROW(ef1)){ # ef1 empty
         ef1 <- ef %>%
@@ -349,11 +349,11 @@ part6 <- function(ef, save = FALSE){
     }
 
     eed <- ef1 %>%
-        dplyr::spread(Type, Value)
+        tidyr::spread(Type, Value)
 
     eed <- eed %>%
         dplyr::group_by(Id_I) %>%
-        dplyr::fill(3:NCOL(eed))
+        tidyr::fill(3:NCOL(eed))
     Events_end_dates <- eed
     if (save){
        save(Events_end_dates, file = "Events_end_dates.rda")
@@ -395,7 +395,7 @@ part7 <- function(ef, ctv, cti, eed, save = FALSE){
         dplyr::ungroup()
 
     ## Merge time-varying covariates:
-    ctv <- rename(ctv, date1 = ChangeDate) # Missed in the Stata version 13.1!?
+    ctv <- dplyr::rename(ctv, date1 = ChangeDate) # Missed in the Stata version 13.1!?
     ef <- ef %>%
         dplyr::left_join(ctv, by = c("Id_I", "date1"))
 
@@ -404,7 +404,7 @@ part7 <- function(ef, ctv, cti, eed, save = FALSE){
         dplyr::left_join(cti, by = "Id_I")
 
     ## Merge events on end dates:
-    eed <- rename(eed, date2 = ChangeDate)
+    eed <- dplyr::rename(eed, date2 = ChangeDate)
     ef <- ef %>%
         dplyr::left_join(eed, by = c("Id_I", "date2"))
 
@@ -446,8 +446,11 @@ part8 <- function(pef, save = FALSE){
 
     ## "Dropping spells when the individual is not at risk"
 
-    Episodes_file <- dplyr::filter(pef, as.numeric(AtRisk) != 0) %>%
-        dplyr::select(-AtRisk, -DayFrac, -Transition)
+    Episodes_file <- dplyr::filter(pef, as.numeric(AtRisk) != 0) ##%>%
+        ##dplyr::select(-AtRisk, -DayFrac, -Transition)
+    Episodes_file$AtRisk <- NULL
+    Episodes_file$DayFrac <- NULL
+    Episodes_file$Transition <- NULL
 
     datestamp <- Sys.time()
     datestamp <- gsub(" ", "_", datestamp)
