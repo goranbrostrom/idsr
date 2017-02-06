@@ -13,7 +13,11 @@ efc <- function(Chronicle, VarSetup){
     ## a column 'mode', which gives the storage mode of variables
     ## in the final result, i.e., numeric, logical, factor, etc.
 
-part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
+part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = TRUE){
+
+    ##********************************************************************
+    ##    **** 		PART 1: READ AND PREPARE VARIABLE SET UP FILE
+    ##********************************************************************
     ## --- INPUT: ---
     ##
     ## From variable list (not disk):
@@ -67,6 +71,7 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
     ## Transition:
     ## TypeTransition <- dplyr::select_(VarSetup1, Type, Transition)
     TypeTransition <- VarSetup1[, c("Type", "Transition")]
+    ## Is this really necessary!!? Why not use VarSetup1?
     if (keep){
         save(TypeTransition, file = "TypeTransition.rda")
     }
@@ -76,6 +81,9 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
       ##                                Duration == "Continuous")
     TypeDuration <- VarSetup1[with(VarSetup1, Transition != "End" &
                                        Duration == "Continuous"), ]
+
+    ## For the time being, I do not think that 'TypeDuration' and
+
     ##TypeDuration <- dplyr::select(TypeDuration, Type)
     TypeDuration <- TypeDuration[, c("Type")]
     if (keep){
@@ -93,14 +101,17 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
 
     ## Return value:
     list(VarSetup1 = VarSetup1,
-         TypeTransition = TypeTransition,
-         TypeDuration = TypeDuration,
-         TypeReplaceMin1 = TypeReplaceMin1)
+         TypeTransition = TypeTransition) #,
+         ##TypeDuration = TypeDuration,
+         ##TypeReplaceMin1 = TypeReplaceMin1)
 
 }
 
-part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = TRUE){
+part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
 
+    ##*****************************************************************
+    ##    **** 		PART 2: READ AND PREPARE THE CHRONICLE FILE
+    ##*****************************************************************
     ## --- INPUT: ---
     ##
     ## From variable list (not disk):
@@ -143,7 +154,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = TRUE){
         cat("Missing variables in 'Chronicle': ", mandat[notPresent], "\n")
         stop("Correct and retry!")
     }else{
-        cat("'Chronicle.dta' is OK.\n") # Will be removed later.
+        cat("'Chronicle' is OK.\n") # Will be removed later.
     }
 
     ## Generating DateFormat for Types which have no Value but
@@ -261,6 +272,11 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = TRUE){
 }
 
 part3 <- function(vs = x$VarSetup1, ch = y$ExtractionFile){
+
+    ##*********************************************************
+    ##    **** 						PART 3 : CHECK TYPES
+    ##*********************************************************
+
     ## Checking that the chronicle and variable setup files
     ## contain the same types.
     ##
@@ -271,15 +287,21 @@ part3 <- function(vs = x$VarSetup1, ch = y$ExtractionFile){
 
     type.vs <- sort(unique(vs$Type))
     type.ch <- sort(unique(ch$Type))
-    all.equal(type.vs, type.ch)
+    ##all.equal(type.vs, type.ch) # Is this enough? (next row)
+    all(type.ch %in% type.vs)
 }
 
 part4 <- function(ef, save = FALSE){
-    ## "ef = ExtractionFile, output from part2"
 
-    ## This part creates a wide file containing one column for each type of
-    ## covariate that changes value at the beginning of a spell
-    ## (Transition = Start).
+    ## "ef = ExtractionFile, output from part2"
+    ##
+    ## *******************************************************
+    ## ****                PART 4: TIME_VARYING COVARIATES
+    ## *******************************************************
+    ## This part creates a wide file containing one column for
+    ## each type of covariate that changes value at the
+    ## beginning of a spell (Transition = Start).
+    ## *******************************************************
 
     ef1 <- dplyr::filter(ef, tolower(Transition) == "start")
 
@@ -306,6 +328,13 @@ part4 <- function(ef, save = FALSE){
 }
 
 part5 <- function(ef, save = FALSE){
+
+    ##*************************************************************************
+    ##  ****					PART 5: TIME-INVARIANT COVARIATES
+    ## This part of the program creates a wide file containing one column for
+    ## each type of time-fixed covariate (Transition=Invariant)
+    ##*************************************************************************
+
     ## "ef = ExtractionFile, output from part2"
 
     ## Rectangularisation of time-invariant variables
@@ -333,6 +362,13 @@ part5 <- function(ef, save = FALSE){
 }
 
 part6 <- function(ef, save = FALSE){
+
+    ##*************************************************************************
+    ##    **** 						PART 6: EVENTS
+    ## This part of the program creates a wide file containing one column for
+    ## each type of event occurring at the end of a spell (Transition=End).
+    ##*************************************************************************
+
     ## ef = ExtractionFile, output from part2
 
     ## Rectangularisation of events
@@ -364,10 +400,12 @@ part6 <- function(ef, save = FALSE){
 
 part7 <- function(ef, ctv, cti, eed, save = FALSE){
     ## Construction of spells:
-
-    ## "This part of the program constructs spells and merges start date and
-    ## time-fixed covariates and end-date events."
-
+    ##************************************************************
+    ##  ****			PART 7: SPELLS CONSTRUCTION
+    ## ***********************************************************
+    ## "This part of the program constructs spells and merges
+    ## start date andtime-fixed covariates and end-date events."
+    ## ***********************************************************
     ef <- ef %>%
         dplyr::ungroup() %>%
         dplyr::filter(!is.na(ChangeDate)) %>%
@@ -425,9 +463,11 @@ part8 <- function(pef, save = FALSE){
 
     ## This part contains both 'Part 8' and 'Part 9' from the Stata version.
 
-    ## FORMATTING OF THE EPISODES FILE
-    ## "The purpose of this part of the program is to convert variable formats
-    ## and fill down down missing information."
+    ## ************************************************************
+    ## *** PART 8: FORMATTING OF THE EPISODES FILE
+    ## "The purpose of this part of the program is to convert
+    ## variable formats and fill down down missing information."
+    ## ************************************************************
 
     ## My note: I think 'fill down' is already taken care of.
 
@@ -467,6 +507,7 @@ part8 <- function(pef, save = FALSE){
     p2 <- part2(Chronicle, tt = p1$TypeTransition)
     cat("\npart3: \n")
     p3 <- part3(p1$VarSetup1, p2$ExtractionFile) # p3 is a logical
+    cat("p3 = ", p3, "\n")
     if (!p3) stop("Mismatch!!")
     cat("part4: \n")
     Covariates_time_varying <- part4(p2$ExtractionFile)
