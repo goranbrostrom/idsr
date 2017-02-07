@@ -1,8 +1,8 @@
-#' Chronicle file with one person (Id_I = 10000325)
+#' Chronicle file with 97 persons
 #'
-#' A training data set for debugging.
+#' A training data set.
 #'
-#' @format A data frame with 12 rows and 7 columns
+#' @format A data frame with 1922 rows and 7 columns
 #' \describe{
 #'    \item{Id_I}{Id number (character)}
 #'    \item{Type}{Variable names}
