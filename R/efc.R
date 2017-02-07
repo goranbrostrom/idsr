@@ -13,7 +13,40 @@ efc <- function(Chronicle, VarSetup){
     ## a column 'mode', which gives the storage mode of variables
     ## in the final result, i.e., numeric, logical, factor, etc.
 
-part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = TRUE){
+part3 <- function(vs = VarSetup, ch = Chronicle, keep = FALSE){
+
+    ##*********************************************************
+    ##    **** 						PART 3 : CHECK TYPES
+    ##*********************************************************
+
+    ## Checking that the chronicle and variable setup files
+    ## contain the same types.
+    ##
+    ## If Types in VarSetup are not present in Chronicle,
+    ## the corresponding rows in Varsetup are removed.
+    ##
+    ## If Types in Chronicle are not present in Varsetup,
+    ## an error is thrown.
+    ##
+    ## In the future, VarSetup can be constructed fron Chronicle(?)
+    ##
+
+    ## Returns (a modified) VarSetup.
+
+    type.vs <- sort(unique(vs$Type))
+    type.ch <- sort(unique(ch$Type))
+    ##all.equal(type.vs, type.ch) # Is this enough? (next row)
+    ret <- all(type.ch %in% type.vs)
+    ## New abbrewinkel: Cut down on 'Varsetup1':
+    if (!ret) stop("Missing Types in 'Chronicle")
+    rem.vs <- type.vs[!(type.vs %in% type.ch)]
+    ##cat("rem.vs = ", rem.vs, "\n")
+    VarSetup <- vs[!(vs$Type %in% rem.vs), ]
+    if (keep) save(VarSetup, file = "VarSetup.rda")
+    VarSetup
+}
+
+part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
 
     ##********************************************************************
     ##    **** 		PART 1: READ AND PREPARE VARIABLE SET UP FILE
@@ -83,21 +116,22 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = TRUE){
                                        Duration == "Continuous"), ]
 
     ## For the time being, I do not think that 'TypeDuration' and
+    ## 'TypeReplace1' are necessary (really?), so outcommented
 
     ##TypeDuration <- dplyr::select(TypeDuration, Type)
-    TypeDuration <- TypeDuration[, c("Type")]
-    if (keep){
-        save(TypeDuration, file = "TypeDuration.rda")
-    }
-
-    ## Minus1
-    TypeReplaceMin1 <- TypeDuration # ?? Check this!
-    if (keep){
-        save(TypeReplaceMin1, file = "TypeReplaceMin1.rda")
-    }
+    # TypeDuration <- TypeDuration[, c("Type")]
+    # if (keep){
+    #     save(TypeDuration, file = "TypeDuration.rda")
+    # }
+    #
+    # ## Minus1
+    # TypeReplaceMin1 <- TypeDuration # ?? Check this!
+    # if (keep){
+    #     save(TypeReplaceMin1, file = "TypeReplaceMin1.rda")
+    # }
 
     ## Value labels ('using')
-    #  Skip this for the time being: The file 'ValueLabel' is not created.
+    ##  Skip this for the time being: The file 'ValueLabel' is not created.
 
     ## Return value:
     list(VarSetup1 = VarSetup1,
@@ -263,7 +297,10 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ## Check duplicates in 'ExtractionFile':
     dups <- with(ExtractionFile, paste(Id_I, as.numeric(ChangeDate), Type))%>%
         duplicated()
-    cat("There are", sum(dups), " duplicated rows in 'ExtractionFile'.\n")
+
+    if (sum(dups)){
+        cat("There are", sum(dups), " duplicated rows in 'ExtractionFile'.\n")
+    }
 
     list(ExtractionFile = ExtractionFile,
         TypeDateFormat = TypeDateFormat,
@@ -271,27 +308,8 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
          DayFracOneDate1 = DayFracOneDate1)
 }
 
-part3 <- function(vs = x$VarSetup1, ch = y$ExtractionFile){
 
-    ##*********************************************************
-    ##    **** 						PART 3 : CHECK TYPES
-    ##*********************************************************
-
-    ## Checking that the chronicle and variable setup files
-    ## contain the same types.
-    ##
-    ## But we take 'ExtractionFile' instead of 'Chronicle'
-    ## and 'VarSetup1' instead of 'VarSetup'
-
-    ## Should return 'TRUE'. If not, search for errors.
-
-    type.vs <- sort(unique(vs$Type))
-    type.ch <- sort(unique(ch$Type))
-    ##all.equal(type.vs, type.ch) # Is this enough? (next row)
-    all(type.ch %in% type.vs)
-}
-
-part4 <- function(ef, save = FALSE){
+part4 <- function(ef, keep = FALSE){
 
     ## "ef = ExtractionFile, output from part2"
     ##
@@ -321,13 +339,13 @@ part4 <- function(ef, save = FALSE){
         dplyr::group_by(Id_I) %>%
         tidyr::fill(3:NCOL(ctv))
     Covariates_time_varying <- ctv
-    if (save){
+    if (keep){
         save(Covariates_time_varying, file = "Covariates_time_varying.rda")
     }
     ctv
 }
 
-part5 <- function(ef, save = FALSE){
+part5 <- function(ef, keep = FALSE){
 
     ##*************************************************************************
     ##  ****					PART 5: TIME-INVARIANT COVARIATES
@@ -340,6 +358,8 @@ part5 <- function(ef, save = FALSE){
     ## Rectangularisation of time-invariant variables
 
     ef1 <- dplyr::filter(ef, tolower(Transition) == "invariant")
+    ef1$ChangeDate <- NULL
+    ef1$Transition <- NULL
 
     if (!NROW(ef1)){ # ef1 empty
         ef1 <- ef %>%
@@ -354,14 +374,14 @@ part5 <- function(ef, save = FALSE){
         dplyr::group_by(Id_I) %>%
         tidyr::fill(2:NCOL(cti))
     Covariates_time_invariant <- cti
-    if (save){
+    if (keep){
        save(Covariates_time_invariant, file = "Covariates_time_invariant.rda")
     }
 
     cti
 }
 
-part6 <- function(ef, save = FALSE){
+part6 <- function(ef, keep = FALSE){
 
     ##*************************************************************************
     ##    **** 						PART 6: EVENTS
@@ -384,6 +404,7 @@ part6 <- function(ef, save = FALSE){
             dplyr::mutate(ChangeDate = as.Date("1900-01-01"), DayFrac = NA)
     }
 
+    ef1$Value[is.na(ef1$Value) | ef1$Value == ""] <- 1
     eed <- ef1 %>%
         tidyr::spread(Type, Value)
 
@@ -391,20 +412,20 @@ part6 <- function(ef, save = FALSE){
         dplyr::group_by(Id_I) %>%
         tidyr::fill(3:NCOL(eed))
     Events_end_dates <- eed
-    if (save){
+    if (keep){
        save(Events_end_dates, file = "Events_end_dates.rda")
     }
 
     eed
 }
 
-part7 <- function(ef, ctv, cti, eed, save = FALSE){
+part7 <- function(ef, ctv, cti, eed, keep = FALSE){
     ## Construction of spells:
     ##************************************************************
     ##  ****			PART 7: SPELLS CONSTRUCTION
     ## ***********************************************************
     ## "This part of the program constructs spells and merges
-    ## start date andtime-fixed covariates and end-date events."
+    ## start date and time-fixed covariates and end-date events."
     ## ***********************************************************
     ef <- ef %>%
         dplyr::ungroup() %>%
@@ -448,18 +469,21 @@ part7 <- function(ef, ctv, cti, eed, save = FALSE){
 
     ef <- dplyr::filter(ef, !is.na(AtRisk))
 
+    n <- length(ef)
+    ef[is.na(ef[[n]]), n] <- 0 # Does this work?
+
     ## Just in case they exist...:
     ef$EmptyVar0 <- ef$EmptyVar1 <- ef$EmptyVar2 <- NULL
 
     PreEpisodes_file <- ef
-    if (save){
+    if (keep){
        save(PreEpisodes_file, file = "PreEpisodes_file.rda")
     }
 
     ef
 }
 
-part8 <- function(pef, save = FALSE){
+part8 <- function(pef, vs, keep = FALSE){
 
     ## This part contains both 'Part 8' and 'Part 9' from the Stata version.
 
@@ -492,23 +516,48 @@ part8 <- function(pef, save = FALSE){
     Episodes_file$DayFrac <- NULL
     Episodes_file$Transition <- NULL
 
+    ## Finally, give variables the correct storage mode, if 'mode'exists in
+    ## 'VarSetup'
+
+    vs <- vs[, c("Type", "mode")]
+    for (ef_name in names(Episodes_file)){
+        if (ef_name %in% vs$Type){
+            i <- which(ef_name == names(Episodes_file))
+            j <- which(ef_name == vs$Type)
+            mod <- vs$mode[j]
+            if (mod == "date"){
+                Episodes_file[[ef_name]] <- as.Date(Episodes_file[[ef_name]])
+            }else{
+                if (mod == "factor"){
+                    Episodes_file[[ef_name]] <- as.factor(Episodes_file[[ef_name]])
+                }else{
+                    ##cat("mod = ", mod, "\n")
+                    storage.mode(Episodes_file[[ef_name]]) <- mod
+                }
+            }
+        }
+    }
     datestamp <- Sys.time()
     datestamp <- gsub(" ", "_", datestamp)
-    if (save){
+    if (keep){
        save(Episodes_file, file = paste("Episodes_file", datestamp, ".rda", sep = ""))
     }
 
     Episodes_file
 }
 
+#########################################
+### Beginning of "main program"!        #
+#########################################
+
+    ## Note: part3 is now first!
+    cat("\npart3: \n")
+    VarSetup <- part3(VarSetup, Chronicle, keep = FALSE) # p3 is a logical
+
     cat("part1: \n")
     p1 <- part1(VarSetup)
     cat("\npart2: \n")
     p2 <- part2(Chronicle, tt = p1$TypeTransition)
-    cat("\npart3: \n")
-    p3 <- part3(p1$VarSetup1, p2$ExtractionFile) # p3 is a logical
-    cat("p3 = ", p3, "\n")
-    if (!p3) stop("Mismatch!!")
     cat("part4: \n")
     Covariates_time_varying <- part4(p2$ExtractionFile)
     cat("part5: \n")
@@ -518,7 +567,7 @@ part8 <- function(pef, save = FALSE){
     cat("part7: \n")
     PreEpisodes_file <- part7(p2$ExtractionFile, Covariates_time_varying, Covariates_time_invariant, eed)
     cat("part8+9: \n")
-    Episodes_file <- part8(PreEpisodes_file)
+    Episodes_file <- part8(PreEpisodes_file, VarSetup)
     Episodes_file
 }
 
