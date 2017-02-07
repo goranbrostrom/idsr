@@ -3,8 +3,8 @@
 \docType{data}
 \name{indi}
 \alias{indi}
-\title{Chronicle file with one person (Id_I = 10000325)}
-\format{A data frame with 12 rows and 7 columns
+\title{Chronicle file with 97 persons}
+\format{A data frame with 1922 rows and 7 columns
 \describe{
    \item{Id_I}{Id number (character)}
    \item{Type}{Variable names}
@@ -18,6 +18,6 @@
 indi
 }
 \description{
-A training data set for debugging.
+A training data set.
 }
 \keyword{datasets}
