@@ -1,28 +1,24 @@
----
-output: html_document
----
-
-# idsr
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+idsr
+====
 
 *idsr* is an **R** package for reading data from data bases stored in the IDS format (Alter and Manemakers, 2014) and create data in a form suitable for statistical analysis (in **R**).
 
-## Installation
+### Installation
 
 Use Hadley Wickham's *devtools*:
 
-```
-> install.packages("devtools")
-> devtools::install_github("goranbrostrom/idsr")
-```
+    > install.packages("devtools")
+    > devtools::install_github("goranbrostrom/idsr")
 
 and then
 
-```
-> library(idsr)
-> episodes <- efc(indi, varset)
-```
+    > library(idsr)
+    > episodes <- efc(indi, varset)
+
 and read the documentation.
 
-# Reference
+Reference
+---------
 
 Alter, George & Kees Mandemakers, 'The Intermediate Data Structure (IDS) for Longitudinal Historical Microdata, version 4', *Historical Life Course Studies* 1 (2014), 1-26.
