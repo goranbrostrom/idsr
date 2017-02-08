@@ -1,24 +1,9 @@
 ---
 title: idsr
 output: html_document
-references:
-- id: altermande14
-  title: The Intermediate Data Structure (IDS) for longitudinal historical microdata, version 4
-  author:
-  - family: Alter
-    given: George
-  - family: Mandemakers
-    given: Kees
-  container-title: Historical Life Course Studies
-  volume: 1
-  URL: http://hdl.handle.net/10622
-  page: 1-26
-  type: article-journal
-  issued:
-    year: 2014
 ---
 
-*idsr* is an **R** package for reading data from data bases stored in the IDS format [@altermande14] and create data in a form suitable for statistical analysis (in **R**).
+*idsr* is an **R** package for reading data from data bases stored in the IDS format (Alter and Manemakers, 2014) and create data in a form suitable for statistical analysis (in **R**).
 
 ## Installation
 
@@ -39,3 +24,4 @@ and read the documentation.
 
 # Reference
 
+Alter, George & Kees Mandemakers, 'The Intermediate Data Structure (IDS) for Longitudinal Historical Microdata, version 4', *Historical Life Course Studies* 1 (2014), 1-26.
