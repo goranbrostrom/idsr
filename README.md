@@ -1,7 +1,8 @@
 ---
-title: idsr
 output: html_document
 ---
+
+# idsr
 
 *idsr* is an **R** package for reading data from data bases stored in the IDS format (Alter and Manemakers, 2014) and create data in a form suitable for statistical analysis (in **R**).
 
