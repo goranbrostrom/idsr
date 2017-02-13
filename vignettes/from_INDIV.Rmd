@@ -1,0 +1,197 @@
+---
+title: "From INDIVIDUAL to Episodes File"
+author: "Göran Broström"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{From  INDIVIDUAL to Episodes File}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This is an example of how to go directly from an *INDIVIDUAL* file to an episodes file. We use a file fom DDB, Umeå, covering the Skellefteå area ca 1800--1900.
+
+# Checking the INDIVIDUAL file from DDB
+
+In *idsr*, the DDB data set is stored in *ddb*:
+
+```{r}
+options(warn = 2)
+library(idsr)
+str(ddb)
+```
+
+So, *ddb* is a data frame with 3181 observations on 18 variables, and for our purpose the variables *Id*, *Id_D* and *Source* may be left out (keep our data set as small as possible). We will use Hadley Wickhams packages *dplyr* and *tidyr*, which  are excellent resources for the type of data massaging we will perform here.
+
+```{r install}
+library(dplyr)
+library(tidyr)
+indiv <- ddb %>% 
+    select(-Id, -Id_D, -Source)
+summary(indiv)
+```
+
+## Dates
+
+Next, let us take care of the rather clumsy representation of *dates*. In **R**, the *Date* class is useful, and we convert the "Day, Month, Year" paradigm to a Date object:
+
+```{r dates}
+indiv$date <- as.Date(with(indiv, paste(Year, Month, Day, sep = "-")), format = "%Y-%m-%d")
+valid_date <- !is.na(indiv$date)
+Year_pos <- indiv$Year > 1
+table(Year_pos, valid_date)
+```
+
+This shows that we got problems with valid dates, for instance
+
+```{r nonvaliddates}
+ff <- indiv %>%
+    filter(Year > 1 & is.na(date))
+ff[21:25, ]
+```
+
+Now this looks really bad for additional reasons: *MARRIAGE_LOCATION* takes four different Values on the same Year (date missing). I think the DDB INDIVIDUAL file too corrupt to be useful.
+
+# Quaranta's Demo Data Base
+
+To make it really simple, with no messy data, let us use [Quaranta's demo data base](http://www.ehps-net.eu/article/stata-programs-using-intermediate-data-structure-ids-construct-files-statistical-analysis).
+
+```{r loaddemo}
+x <- system.file("extdata", "DemoDatabase.xlsx", mustWork = TRUE, package = "idsr")
+library(readxl)
+individual <- read_excel(x, sheet = 1)
+summary(individual)
+```
+
+Obviously, we can get rid of a lot of *date* data, and the *Id_D* and *Source* columns as well:
+
+```{r getrioof}
+individual <- individual %>%
+    select(Id_I, Type, Value, Value_Id_C, Day, Month, Year, Date_type)
+head(individual)
+```
+
+## Fix the dates
+
+We fix the dates as before:
+
+```{r fixdates2}
+individual$date <- 
+    with(individual, as.Date(as.character(paste(Year, Month, Day, sep = "-")), 
+                             format = "%Y-%m-%d"))
+valid_date <- !is.na(individual$date)
+Year_pos <- !is.na(individual$Year)
+table(Year_pos, valid_date)
+```
+
+No problems with dates here, we can remove the variables *Year*, *Month*, and *Day*.
+
+```{r cleanup}
+individual <- select(individual, -Year, -Month, -Day)
+summary(individual)
+```
+
+
+## Separating out the time constant variables
+
+We assume that variables without a time stamp are constant. Let us look at that:
+
+```{r}
+has_date <- valid_date
+with(individual, table(Type, has_date))
+```
+
+We accept this with one exception: The variable *Birth_date* is time fixed. It is a special case, where the *Value* is (or should be) equal to the time stamp. Note that most individuals do have a birthdate, even if they are not born in the population register. Those who are have an *Event = Birth*. 
+
+We create the data frame *person* containing all time-fixed covariates:
+
+```{r createperson}
+person <- individual %>%
+    filter(!has_date | Type == "Birth_date")
+dt_pl <- person$Type == "Birth_date"
+person$Value[dt_pl] <- as.character(person$date[dt_pl])
+person <- person %>%
+    select(-date, -Date_type)
+knitr::kable(head(person))
+```
+
+This is an *untidy* data frame, but it is straightforward to tidy it (variables in columns, individuals in rows) with Hadley Wickham's **R** package *tidyr*. However, we must deal with the special Variable *Value_Id_C*. It has a value when *Value* is missing, so we push it into *Value* and remove *Value_Id_C*:
+
+```{r tidyperson}
+vic <- !is.na(person$Value_Id_C)
+person$Value[vic] <- person$Value_Id_C[vic]
+person$Value_Id_C <- NULL # removes Value_Id_C
+library(tidyr)
+per <- spread(person, Type, Value, convert = TRUE)
+per$Birth_date <- as.Date(per$Birth_date)
+per$Sex <- as.factor(per$Sex)
+knitr::kable(head(per, 8))
+summary(per)
+```
+This looks fine, one row per individual. Note that we had to set the correct *mode* (*Date*, *factor*) on the variables *Birth_date* and *Sex*.
+
+This was the easy part. Over to the time-varying stuff.
+
+## The "chronicle" file
+
+The remaining records have all time stamps, and those will be regarded as dates of events. An *event* is something that changes a variable from one *state* to another (levels of a *variable*). We gather these records in a data frame called *chronicle*.
+
+```{r getchronicle}
+chronicle <- individual %>%
+    filter(has_date & !(Type == "Birth_date"))
+unique(chronicle$Type)
+```
+So there are six event types, and we need to find the corresponding variables (with states).
+*Marriage* is an event that changes *Civil_status* from *unmarried* or *widowed* to *married*.
+*Occupation* is not an event but a variable (group of states), so we let it be. *Start_observation* is an event that changes the state of the variable *present* from *FALSE* to *TRUE*. Similarly for the event *End_observation*. The events *Birth* and *Death* are natural events that have the same status as *Start_observation* and *End_observation*, but globally: If present, *Birth* is the *first Start_observation* and *Death* is the last *End_observation*.
+
+The Type *Marriage* is odd: We want to connect it to a variable *Civil_status*. If we let the column *Type* contain events, we need another column *Variable*. And we don't need "Value_Id_C" here.
+
+```{r nevcol}
+chronicle$Value_Id_C <- NULL
+chronicle$Variable <- ""
+mar <- chronicle$Type == "Marriage"
+chronicle$Variable[mar] <- "civil_status"
+chronicle$Value[mar] <- "married"
+##
+occ <- chronicle$Type == "Occupation"
+chronicle$Variable[occ] <- "occupation"
+##
+pres <- chronicle$Type == "Start_observation"
+chronicle$Variable[pres] <- "present"
+chronicle$Type[pres] <- chronicle$Value[pres]
+chronicle$Value[pres] <- "TRUE"
+##
+pres <- chronicle$Type == "End_observation"
+chronicle$Variable[pres] <- "present"
+chronicle$Type[pres] <- chronicle$Value[pres]
+chronicle$Value[pres] <- "FALSE"
+##
+bir <- chronicle$Type == "Birth"
+chronicle$Variable[bir] <- "present"
+chronicle$Value[bir] <- "TRUE"
+##
+dea <- chronicle$Type == "Death"
+chronicle$Variable[dea] <- "present"
+chronicle$Value[dea] <- "FALSE"
+##
+knitr::kable(chronicle)
+```
+
+One problem with this is the fact that there are duplicates: For instance *Birth* as both *Declared* and *Event*, and similarly for *Death*.
+
+This must me dealt with. To be continued ... Input is welcome.
+
+# Conclusion
+
+Yet to be written ...
+
+# References
+
+Alter, George & Kees Mandemakers, 'The Intermediate Data Structure (IDS) for Longitudinal Historical Microdata, version 4', *Historical Life Course Studies* 1 (2014), 1--26.
+[http](http://hdl.handle.net/10622/23526343-2014-0001?locatt=view:master)
+
+Quaranta, Luciana, 'Using the Intermediate Data Structure (IDS) to Construct Files for Statistical Analysis', *Historical Life Course Studies* 2 (2015), 86--107.
+[http](http://hdl.handle.net/10622/23526343-2015-0007?locatt=view:master)
+
+Quaranta, Luciana, 'Stata Programs for Using the Intermediate Data Structure (IDS) to Construct files for Statistical Analysis', *Historical Life Course Studies* 3 (2015), 1--19. [http](http://hdl.handle.net/10622/23526343-2016-0001?locatt=view:master())

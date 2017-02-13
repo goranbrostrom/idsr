@@ -1,7 +1,7 @@
 Package: idsr
 Type: Package
 Title: Creates an episodes data frame
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: person("Göran", "Broström", email = "goran.brostrom@umu.se",
             role = c("aut", "cre"))
 Description: From a Chronicle and a VarSetup data frame, an episodes data frame
@@ -14,3 +14,6 @@ LazyData: true
 RoxygenNote: 6.0.0
 URL: http://github.com/goranbrostrom/idsr
 BugReports: http://github.com/goranbrostrom/idsr/issues
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
