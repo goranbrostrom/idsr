@@ -15,5 +15,6 @@ RoxygenNote: 6.0.0
 URL: http://github.com/goranbrostrom/idsr
 BugReports: http://github.com/goranbrostrom/idsr/issues
 Suggests: knitr,
-    rmarkdown
+    rmarkdown,
+    readxl
 VignetteBuilder: knitr
