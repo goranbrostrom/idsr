@@ -8,15 +8,17 @@ idsr
 
 Use Hadley Wickham's *devtools*:
 
-    > install.packages("devtools")
-    > devtools::install_github("goranbrostrom/idsr")
+    > install.packages(c("devtools", "dplyr", "tidyr", "readxl"))
+    > devtools::install_github("goranbrostrom/idsr", build_vignettes = TRUE)
 
 and then
 
     > library(idsr)
     > episodes <- efc(indi, varset)
 
-and read the documentation.
+and read the documentation and vignette.
+
+You may need additional tools, you will be told if something is missing.
 
 Reference
 ---------
