@@ -1,7 +1,7 @@
 Package: idsr
 Type: Package
 Title: Creates an episodes data frame
-Version: 0.1.1
+Version: 0.0.0.9000
 Authors@R: person("Göran", "Broström", email = "goran.brostrom@umu.se",
             role = c("aut", "cre"))
 Description: From a Chronicle and a VarSetup data frame, an episodes data frame
