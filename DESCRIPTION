@@ -1,17 +1,18 @@
+Encoding: UTF-8
 Package: idsr
 Type: Package
 Title: Creates an episodes data frame
-Version: 0.0.0.9000
+Version: 0.0.0.9200
+Date: 2017-05-07
 Authors@R: person("Göran", "Broström", email = "goran.brostrom@umu.se",
             role = c("aut", "cre"))
 Description: From a Chronicle and a VarSetup data frame, an episodes data frame
     is created. This data frame will have a suitable form for event history and 
     survival analysis.
 License: GPL (>= 2)
-Imports: dplyr, magrittr, tidyr
-Encoding: UTF-8
+Imports: dplyr, tidyr
 LazyData: true
-RoxygenNote: 6.0.0
+RoxygenNote: 6.0.1
 URL: http://github.com/goranbrostrom/idsr
 BugReports: http://github.com/goranbrostrom/idsr/issues
 Suggests: knitr,
