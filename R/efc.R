@@ -1,6 +1,5 @@
 #' Create an episodes file from a Chronicle and a VarSetup file.
 #'
-#' @importFrom magrittr "%>%"
 #' @export
 #' @param Chronicle The chronicle data frame.
 #' @param VarSetup The VarSetup data frame.
@@ -12,6 +11,32 @@ efc <- function(Chronicle, VarSetup){
     ## But first, note that the data frame 'VarSetup' is appended
     ## a column 'mode', which gives the storage mode of variables
     ## in the final result, i.e., numeric, logical, factor, etc.
+    
+    #########################################
+    ### Beginning of "main program"!        #
+    #########################################
+    
+    ## Note: part3 is now first!
+    cat("\npart3: \n")
+    VarSetup <- part3(VarSetup, Chronicle, keep = FALSE) # p3 is a logical
+    
+    cat("part1: \n")
+    p1 <- part1(VarSetup)
+    cat("\npart2: \n")
+    p2 <- part2(Chronicle, tt = p1$TypeTransition)
+    cat("part4: \n")
+    Covariates_time_varying <- part4(p2$ExtractionFile)
+    cat("part5: \n")
+    Covariates_time_invariant <- part5(p2$ExtractionFile)
+    cat("part6: \n")
+    eed <- part6(p2$ExtractionFile)
+    cat("part7: \n")
+    PreEpisodes_file <- part7(p2$ExtractionFile, Covariates_time_varying, Covariates_time_invariant, eed)
+    cat("part8+9: \n")
+    Episodes_file <- part8(PreEpisodes_file, VarSetup)
+    Episodes_file
+}
+
 
 part3 <- function(vs = VarSetup, ch = Chronicle, keep = FALSE){
 
@@ -94,7 +119,9 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
 
     ## Find Type = 'AtRisk'
 
-    VarSetup$Type <- with(VarSetup, replace(Type, Type == atrisk, "AtRisk"))
+    who <- VarSetup$Type == atrisk
+    VarSetup$Type[who] <- "AtRisk"
+    ##VarSetup$Type <- with(VarSetup, replace(Type, Type == atrisk, "AtRisk"))
 
     VarSetup1 <- VarSetup
     if (keep){
@@ -110,15 +137,15 @@ part1 <- function(VarSetup, atrisk = "At_risk", using = "", keep = FALSE){
     }
 
     ## Duration:
-    ##TypeDuration <- dplyr::filter(VarSetup1, Transition != "End" &
+    ##TypeDuration <- dplyr::filter_(VarSetup1, Transition != "End" &
       ##                                Duration == "Continuous")
-    TypeDuration <- VarSetup1[with(VarSetup1, Transition != "End" &
-                                       Duration == "Continuous"), ]
+    TypeDuration <- VarSetup1[VarSetup1$Transition != "End" &
+                                       VarSetup1$Duration == "Continuous", ]
 
     ## For the time being, I do not think that 'TypeDuration' and
     ## 'TypeReplace1' are necessary (really?), so outcommented
 
-    ##TypeDuration <- dplyr::select(TypeDuration, Type)
+    ##TypeDuration <- dplyr::select_(TypeDuration, Type)
     # TypeDuration <- TypeDuration[, c("Type")]
     # if (keep){
     #     save(TypeDuration, file = "TypeDuration.rda")
@@ -201,15 +228,16 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
 
     TypeDateFormat <- dplyr::left_join(Chronicle, tt, by = "Type")
     TypeDateFormat$emptyType <- TypeDateFormat$Value == ""
-    TypeDateFormat <- dplyr::filter(TypeDateFormat, (Transition != "End") &
-                                                    (Type != "AtRisk")) %>%
-        dplyr::group_by(Type) %>%
-        dplyr::summarise_at(dplyr::vars(emptyType), dplyr::funs(min, max)) %>%
-        dplyr::filter(max == 1 & min == 1) %>% #
-        ##Same as 'filter(minempty == 1)'?
-        dplyr::select(Type) %>%
-        dplyr::filter(!duplicated(Type)) %>%
-        dplyr::mutate(DateFormat = "%Y-%m-%d")
+    TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~(Transition != "End") &
+                                                    ~(Type != "AtRisk"))
+    TypeDateFormat <- dplyr::group_by_(TypeDateFormat, ~Type)
+    TypeDateFormat <- dplyr::summarise_at(TypeDateFormat, dplyr::vars(emptyType), 
+                                          dplyr::funs(min, max))
+    TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~(max == 1 & min == 1))
+        ##Same as 'filter_(minempty == 1)'?
+    TypeDateFormat <- dplyr::select_(TypeDateFormat, ~Type)
+    TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~!duplicated(Type))
+    TypeDateFormat$DateFormat <- "%Y-%m-%d"
     ##TypeDateFormat
     if (keep){
         save(TypeDateFormat, file = "TypeDateFormat.rda")
@@ -234,51 +262,58 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
 
 
     ## Now the
-    who <- with(DayFracOneDate, Value == "" & Transition != "End")
-    DayFracOneDate$ChangeDate <- with(DayFracOneDate,
-                                      paste(Year, Month, Day, sep = "-")) %>%
-        as.Date(format = TypeDateFormat$DateFormat)
+    who <- DayFracOneDate$Value == "" & DayFracOneDate$Transition != "End"
+    DayFracOneDate$ChangeDate <- paste(DayFracOneDate$Year, 
+                                       DayFracOneDate$Month, 
+                                       DayFracOneDate$Day, sep = "-")
+    DayFracOneDate$ChangeDate <- as.Date(DayFracOneDate$ChangeDate, 
+                                         format = TypeDateFormat$DateFormat)
     DayFracOneDate$Value[who] <- as.character(DayFracOneDate$ChangeDate[who])
-    DayFracOneDate <- dplyr::select(DayFracOneDate, -Year, -Month, -Day)
+    ##DayFracOneDate <- dplyr::select_(DayFracOneDate, -Year, -Month, -Day)
+    DayFracOneDate <- DayFracOneDate[!(names(DayFracOneDate) %in% c("Year", "Month", "Day"))]
 
     DayFracOneDate$DayFrac[is.na(DayFracOneDate$DayFrac)] <- 0
 
     ##DayFracOneDate$dtype <- is.na(DayFracOneDate$ChangeDate) # Not really necessary (?)
     ##DayFracOneDate <- arrange(DayFracOneDate, Id_I, ChangeDate, dtype)
-    ##DayFracOneDate <- group_by(DayFracOneDate, Id_I, ChangeDate, dtype)
-    ##DayFracOneDate <- mutate(DayFracOneDate, temp = seq_len(n()))
+    ##DayFracOneDate <- group_by_(DayFracOneDate, Id_I, ChangeDate, dtype)
+    ##DayFracOneDate <- mutate_(DayFracOneDate, temp = seq_len(n()))
 
-    DayFracOneDate <- DayFracOneDate %>%
-        dplyr::mutate(dtype = is.na(ChangeDate)) %>% # Not really necessary (?)
-        dplyr::arrange(Id_I, ChangeDate, dtype) %>%
-        dplyr::group_by(Id_I, ChangeDate, dtype) %>%
-        dplyr::mutate(temp = seq_len(n()), temp1 = (temp == 1 & !is.na(ChangeDate))) %>%
-        dplyr::group_by(Id_I, temp1) %>%
-        dplyr::mutate(temp2 = temp1 * seq_len(n())) %>%
-        dplyr::group_by(Id_I) %>%
-        dplyr::mutate(numDate = max(temp2)) %>%
-        dplyr::select(-temp, -temp1, -temp2, -dtype)
+    DayFracOneDate$dtype <- is.na(DayFracOneDate$ChangeDate)
+    DayFracOneDate <- DayFracOneDate[with(DayFracOneDate, order(Id_I, ChangeDate, dtype)), ]
+    ##DayFracOneDate <- DayFracOneDate %>%
+        ##dplyr::mutate_(dtype = is.na(ChangeDate)) %>% # Not really necessary (?)
+        ##dplyr::arrange(Id_I, ChangeDate, dtype) %>%
+    DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~ChangeDate, ~dtype)
+    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp = seq_len(n()), 
+                                    temp1 = ("temp" == 1 & !is.na("ChangeDate")))
+    DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~temp1)
+    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = teatriskmp1 * seq_len(n()))
+    DayFracOneDate <- dplyr::group_by_(DayFracOneDate, Id_I)
+    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, numDate = max(temp2))
+    DayFracOneDate <- dplyr::select_(DayFracOneDate, -temp, -temp1, -temp2, -dtype)
     if (keep){
         save(DayFracOneDate, file = "DayFracOneDate.rda")
     }
     ## DayFracOneDate1 :
 
-    DayFracOneDate1 <- dplyr::filter(DayFracOneDate, numDate == 1 & !is.na(ChangeDate))
+    DayFracOneDate1 <- dplyr::filter_(DayFracOneDate, numDate == 1 & !is.na(ChangeDate))
 
     ## What if DayFracOneDate1 is empty? Ignored for now: Implications?
 
-    DayFracOneDate1 <- DayFracOneDate1 %>%
-        dplyr::group_by(Id_I, ChangeDate) %>%
-        dplyr::summarize(DayFrac1 = max(DayFrac)) %>%
-        dplyr::mutate(Transition = "End")
+    ##DayFracOneDate1 <- DayFracOneDate1 %>%
+    DayFracOneDate1 <- dplyr::group_by_(DayFracOneDate1, Id_I, ChangeDate)
+    DayFracOneDate1 <- dplyr::summarize(DayFracOneDate1, DayFrac1 = max(DayFrac))
+    DayFracOneDate1 <- dplyr::mutate_(DayFracOneDate1, Transition = "End")
     if (keep){
         save(DayFracOneDate1, file = "DayFracOneDate1.rda")
     }
 
     ## ExtractionFile:
 
-    ExtractionFile <- dplyr::select(DayFracOneDate, -numDate) %>%
-        dplyr::left_join(DayFracOneDate1, by = c("Id_I", "ChangeDate", "Transition"))
+    ExtractionFile <- dplyr::select_(DayFracOneDate, -numDate)
+    ExtractionFile <- dplyr::left_join(ExtractionFile, DayFracOneDate1, 
+                                       by = c("Id_I", "ChangeDate", "Transition"))
     ## Here 'Stata' continues with
     ## drop if _merge == 2
     ## drop _merge
@@ -295,8 +330,8 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     }
 
     ## Check duplicates in 'ExtractionFile':
-    dups <- with(ExtractionFile, paste(Id_I, as.numeric(ChangeDate), Type))%>%
-        duplicated()
+    dups <- with(ExtractionFile, paste(Id_I, as.numeric(ChangeDate), Type))
+    dups <- duplicated(dups)
 
     if (sum(dups)){
         cat("There are", sum(dups), " duplicated rows in 'ExtractionFile'.\n")
@@ -321,13 +356,13 @@ part4 <- function(ef, keep = FALSE){
     ## beginning of a spell (Transition = Start).
     ## *******************************************************
 
-    ef1 <- dplyr::filter(ef, tolower(Transition) == "start")
+    ef1 <- dplyr::filter_(ef, tolower(Transition) == "start")
 
     if (!NROW(ef1)){ # ef1 empty
-        ef1 <- ef %>%
-            dplyr::select(Id_I) %>%
-            dplyr::filter(!duplicated(Id_I)) %>%
-            dplyr::mutate(Type = "EmptyVar1", Value = "EmptyVal1",
+        ##ef1 <- ef %>%
+        ef1 <- dplyr::select_(ef, Id_I)
+        ef1 <- dplyr::filter_(ef1, !duplicated(Id_I))
+        ef1 <- dplyr::mutate_(ef1, Type = "EmptyVar1", Value = "EmptyVal1",
                    ChangeDate = as.Date("1900-01-01")) # Note: Differs from Luciana!
     }
 
@@ -335,9 +370,9 @@ part4 <- function(ef, keep = FALSE){
 
     ctv <- tidyr::spread(ef1, Type, Value)
 
-    ctv <- ctv %>%
-        dplyr::group_by(Id_I) %>%
-        tidyr::fill(3:NCOL(ctv))
+    ##ctv <- ctv %>%
+    ctv <- dplyr::group_by_(ctv, Id_I)
+    ctv <- tidyr::fill(ctv, 3:NCOL(ctv))
     Covariates_time_varying <- ctv
     if (keep){
         save(Covariates_time_varying, file = "Covariates_time_varying.rda")
@@ -357,22 +392,22 @@ part5 <- function(ef, keep = FALSE){
 
     ## Rectangularisation of time-invariant variables
 
-    ef1 <- dplyr::filter(ef, tolower(Transition) == "invariant")
+    ef1 <- dplyr::filter_(ef, tolower(Transition) == "invariant")
     ef1$ChangeDate <- NULL
     ef1$Transition <- NULL
 
     if (!NROW(ef1)){ # ef1 empty
-        ef1 <- ef %>%
-            dplyr::select(Id_I) %>%
-            dplyr::filter(!duplicated(Id_I)) %>%
-            dpyr::mutate(Type = "EmptyVar2", Value = "EmptyVal2")
+    ##    ef1 <- ef %>%
+        ef1 <- dplyr::select_(ef, Id_I)
+        ef1 <- dplyr::filter_(ef1, !duplicated(Id_I))
+        ef1 <- dplyr::mutate_(ef1, Type = "EmptyVar2", Value = "EmptyVal2")
     }
 
     cti <- tidyr::spread(ef1, Type, Value)
 
-    cti <- cti %>%
-        dplyr::group_by(Id_I) %>%
-        tidyr::fill(2:NCOL(cti))
+    ##cti <- cti %>%
+    cti <- dplyr::group_by_(cti, Id_I)
+    cti <- tidyr::fill(cti, 2:NCOL(cti))
     Covariates_time_invariant <- cti
     if (keep){
        save(Covariates_time_invariant, file = "Covariates_time_invariant.rda")
@@ -392,25 +427,25 @@ part6 <- function(ef, keep = FALSE){
     ## ef = ExtractionFile, output from part2
 
     ## Rectangularisation of events
-    ef1 <- ef %>%
-        dplyr::filter(tolower(Transition) == "end") %>%
-        dplyr::select(-Transition)
+    ##ef1 <- ef %>%
+    ef1 <- dplyr::filter_(ef, tolower(Transition) == "end")
+    ef1 <- dplyr::select_(ef1, -Transition)
 
     if (!NROW(ef1)){
-        ef1 <- ef %>%
-            dplyr::select(Id_I) %>%
-            dplyr::filter(!duplicated(Id_I)) %>%
-            dplyr::mutate(Type = "EmptyVar0", Value = "EmptyVal0") %>%
-            dplyr::mutate(ChangeDate = as.Date("1900-01-01"), DayFrac = NA)
+        ##ef1 <- ef %>%
+        ef1 <- dplyr::select_(ef, Id_I)
+        ef1 <- dplyr::filter_(ef1, !duplicated(Id_I))
+        ef1 <- dplyr::mutate_(ef1, Type = "EmptyVar0", Value = "EmptyVal0")
+        ef1 <- dplyr::mutate_(ef1, ChangeDate = as.Date("1900-01-01"), DayFrac = NA)
     }
 
     ef1$Value[is.na(ef1$Value) | ef1$Value == ""] <- 1
-    eed <- ef1 %>%
-        tidyr::spread(Type, Value)
+    ##eed <- ef1 %>%
+    eed <- tidyr::spread(ef1, Type, Value)
 
-    eed <- eed %>%
-        dplyr::group_by(Id_I) %>%
-        tidyr::fill(3:NCOL(eed))
+    ##eed <- eed %>%
+    eed <- dplyr::group_by_(eed, Id_I)
+    eed <- tidyr::fill(eed, 3:NCOL(eed))
     Events_end_dates <- eed
     if (keep){
        save(Events_end_dates, file = "Events_end_dates.rda")
@@ -427,47 +462,45 @@ part7 <- function(ef, ctv, cti, eed, keep = FALSE){
     ## "This part of the program constructs spells and merges
     ## start date and time-fixed covariates and end-date events."
     ## ***********************************************************
-    ef <- ef %>%
-        dplyr::ungroup() %>%
-        dplyr::filter(!is.na(ChangeDate)) %>%
-        dplyr::select(Id_I, ChangeDate, Transition) %>%
-        dplyr::distinct(Id_I, ChangeDate, Transition) %>%
-        dplyr::arrange(Id_I, ChangeDate, Transition) %>%
-        dplyr::group_by(Id_I) %>%
-        dplyr::mutate(numRows = length(Transition))
+    ef <- dplyr::ungroup(ef)
+    ef <- dplyr::filter_(ef, !is.na(ChangeDate))
+    ef <- dplyr::select_(ef, Id_I, ChangeDate, Transition)
+    ef <- dplyr::distinct(ef, Id_I, ChangeDate, Transition)
+    ef <- dplyr::arrange(ef, Id_I, ChangeDate, Transition)
+    ef <- dplyr::group_by_(ef, Id_I)
+    ef <- dplyr::mutate_(ef, numRows = length(Transition))
 
     ef$rowType <- "-1"
     ef$rowType[ef$numRows == 2] <- ef$Transition[ef$numRows == 2]
 
-    ef <- ef %>%
-        dplyr::ungroup() %>%
-        dplyr::select(Id_I, ChangeDate, rowType) %>%
-        dplyr::distinct(Id_I, ChangeDate, rowType) %>%
-        dplyr::select(-rowType)
+    ef <- dplyr::ungroup(ef)
+    ef <- dplyr::select_(ef, Id_I, ChangeDate, rowType)
+    ef <- dplyr::distinct(ef, Id_I, ChangeDate, rowType)
+    ef <- dplyr::select_(ef, -rowType)
 
-    ef <- ef %>%
-        dplyr::arrange(Id_I, ChangeDate) %>% # Alreay sorted?
-        dplyr::rename(date1 = ChangeDate) %>%
-        dplyr::group_by(Id_I) %>%
-        dplyr::mutate(date2 = lead(date1)) %>%
-        dplyr::filter(!is.na(date2)) %>%
-        dplyr::ungroup()
+    ##ef <- ef %>%
+    ef <- dplyr::arrange(ef, Id_I, ChangeDate) # Alreay sorted?
+    ef <- dplyr::rename(ef, date1 = ChangeDate)
+    ef <- dplyr::group_by_(ef, Id_I)
+    ef <- dplyr::mutate_(ef, date2 = lead(date1))
+    ef <- dplyr::filter_(ef, !is.na(date2))
+    ef <- dplyr::ungroup(ef)
 
     ## Merge time-varying covariates:
     ctv <- dplyr::rename(ctv, date1 = ChangeDate) # Missed in the Stata version 13.1!?
-    ef <- ef %>%
-        dplyr::left_join(ctv, by = c("Id_I", "date1"))
+    ##ef <- ef %>%
+    ef <- dplyr::left_join(ef, ctv, by = c("Id_I", "date1"))
 
     ## Merge time-invariant covariates:
-    ef <- ef %>%
-        dplyr::left_join(cti, by = "Id_I")
+    ##ef <- ef %>%
+    ef <- dplyr::left_join(ef, cti, by = "Id_I")
 
     ## Merge events on end dates:
     eed <- dplyr::rename(eed, date2 = ChangeDate)
-    ef <- ef %>%
-        dplyr::left_join(eed, by = c("Id_I", "date2"))
+    ##ef <- ef %>%
+    ef <- dplyr::left_join(ef, eed, by = c("Id_I", "date2"))
 
-    ef <- dplyr::filter(ef, !is.na(AtRisk))
+    ef <- dplyr::filter_(ef, !is.na(AtRisk))
 
     n <- length(ef)
     ef[is.na(ef[[n]]), n] <- 0 # Does this work?
@@ -510,8 +543,8 @@ part8 <- function(pef, vs, keep = FALSE){
 
     ## "Dropping spells when the individual is not at risk"
 
-    Episodes_file <- dplyr::filter(pef, as.numeric(AtRisk) != 0) ##%>%
-        ##dplyr::select(-AtRisk, -DayFrac, -Transition)
+    Episodes_file <- dplyr::filter_(pef, as.numeric(AtRisk) != 0) ##%>%
+        ##dplyr::select_(-AtRisk, -DayFrac, -Transition)
     Episodes_file$AtRisk <- NULL
     Episodes_file$DayFrac <- NULL
     Episodes_file$Transition <- NULL
@@ -546,28 +579,4 @@ part8 <- function(pef, vs, keep = FALSE){
     Episodes_file
 }
 
-#########################################
-### Beginning of "main program"!        #
-#########################################
-
-    ## Note: part3 is now first!
-    cat("\npart3: \n")
-    VarSetup <- part3(VarSetup, Chronicle, keep = FALSE) # p3 is a logical
-
-    cat("part1: \n")
-    p1 <- part1(VarSetup)
-    cat("\npart2: \n")
-    p2 <- part2(Chronicle, tt = p1$TypeTransition)
-    cat("part4: \n")
-    Covariates_time_varying <- part4(p2$ExtractionFile)
-    cat("part5: \n")
-    Covariates_time_invariant <- part5(p2$ExtractionFile)
-    cat("part6: \n")
-    eed <- part6(p2$ExtractionFile)
-    cat("part7: \n")
-    PreEpisodes_file <- part7(p2$ExtractionFile, Covariates_time_varying, Covariates_time_invariant, eed)
-    cat("part8+9: \n")
-    Episodes_file <- part8(PreEpisodes_file, VarSetup)
-    Episodes_file
-}
 
