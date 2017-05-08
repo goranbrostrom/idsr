@@ -226,7 +226,10 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ## ----------------------------------------------------
     ## is equvalent to (?) (tt == TypeTransition):
 
-    TypeDateFormat <- dplyr::left_join(Chronicle, tt, by = "Type")
+    ##TypeDateFormat <- dplyr::left_join(Chronicle, tt, by = "Type")
+    indx <- match(Chronicle$Type, tt$Type)
+    TypeDateFormat <- Chronicle
+    TypeDateFormat$Transition <- tt$Transition[indx]
 
     ##++++++++++++++++++++++++++++++++++++++++++++++++++++ Start ++++
     if (FALSE){
@@ -236,7 +239,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     TypeDateFormat <- TypeDateFormat[!is.na(TypeDateFormat$Transition) &
                                          !is.na(TypeDateFormat$Type), ]
     TypeDateFormat <- TypeDateFormat[TypeDateFormat$Transition != "End" &
-                                         TypeDateFormat$Type != "AtRisk", ]
+                                         TypeDateFormat$Type != atrisk, ]
     TypeDateFormat <- dplyr::group_by_(TypeDateFormat, ~Type)
     TypeDateFormat <- dplyr::summarise_at(TypeDateFormat, dplyr::vars(emptyType),
                                           dplyr::funs(min, max))
@@ -248,15 +251,15 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ##++++++++++++++++++++++++++++++++++++++++++++++++++++++ End ++
 
     ## The code from '++ Start ++' to '++ End ++' above is an attempt yo sort out the
-    ## distinct Type's that has a non-empty value with Transition not equal to 'End'
-    ## or 'AtRisk'.
+    ## distinct Type's that has a non-empty value with Transition not equal to "End"
+    ## or 'atrisk'.
     ##
     ## Can be done much simpler (I hope):
 
     ## ++++++++++++++++ New start ++++++++++++++++++++++++++++++++++
     TypeDateFormat <- TypeDateFormat[TypeDateFormat$Value != "", ]
     TypeDateFormat <- TypeDateFormat[!(TypeDateFormat$Transition %in%
-                                           c("Atrisk", "End")), ]
+                                           c(atrisk, "End")), ]
     TypeDateFormat <- TypeDateFormat["Type"]
     TypeDateFormat <- TypeDateFormat[!duplicated(TypeDateFormat$Type),]
     TypeDateFormat$DateFormat <- "%Y-%m-%d"
