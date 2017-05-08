@@ -227,9 +227,16 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ## is equvalent to (?) (tt == TypeTransition):
 
     TypeDateFormat <- dplyr::left_join(Chronicle, tt, by = "Type")
+    
+    ##++++++++++++++++++++++++++++++++++++++++++++++++++++ Start ++++
+    if (FALSE){
     TypeDateFormat$emptyType <- TypeDateFormat$Value == ""
-    TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~(Transition != "End") &
-                                                    ~(Type != "AtRisk"))
+    ##TypeDateFormat <- dplyr::filter_(TypeDateFormat, (Transition != "End") &
+      ##                                              (Type != "AtRisk"))
+    TypeDateFormat <- TypeDateFormat[!is.na(TypeDateFormat$Transition) &
+                                         !is.na(TypeDateFormat$Type), ]
+    TypeDateFormat <- TypeDateFormat[TypeDateFormat$Transition != "End" &
+                                         TypeDateFormat$Type != "AtRisk", ]
     TypeDateFormat <- dplyr::group_by_(TypeDateFormat, ~Type)
     TypeDateFormat <- dplyr::summarise_at(TypeDateFormat, dplyr::vars(emptyType), 
                                           dplyr::funs(min, max))
@@ -237,6 +244,20 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
         ##Same as 'filter_(minempty == 1)'?
     TypeDateFormat <- dplyr::select_(TypeDateFormat, ~Type)
     TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~!duplicated(Type))
+    }
+    ##++++++++++++++++++++++++++++++++++++++++++++++++++++++ End ++
+    
+    ## The code from '++ Start ++' to '++ End ++' above is an attempt yo sort out the
+    ## distinct Type's that has a non-empty value with Transition not equal to 'End' 
+    ## or 'AtRisk'. 
+    ##
+    ## Can be done much simpler (I hope):
+        
+    TypeDateFormat <- TypeDateFormat[TypeDateFormat$Value != "", ]
+    TypeDateFormat <- TypeDateFormat[!(TypeDateFormat$Transition %in% 
+                                           c("Atrisk", "End")), ]
+    TypeDateFormat <- TypeDateFormat["Type"]
+    TypeDateFormat <- TypeDateFormat[!duplicated(TypeDateFormat$Type),]
     TypeDateFormat$DateFormat <- "%Y-%m-%d"
     ##TypeDateFormat
     if (keep){
@@ -288,7 +309,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp = seq_len(n()), 
                                     temp1 = ("temp" == 1 & !is.na("ChangeDate")))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~temp1)
-    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = teatriskmp1 * seq_len(n()))
+    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = temp1 * seq_len(n()))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, Id_I)
     DayFracOneDate <- dplyr::mutate_(DayFracOneDate, numDate = max(temp2))
     DayFracOneDate <- dplyr::select_(DayFracOneDate, -temp, -temp1, -temp2, -dtype)
