@@ -1,4 +1,4 @@
-#' Create an episodes file from a Chronicle and a VarSetup file.
+  #' Create an episodes file from a Chronicle and a VarSetup file.
 #'
 #' @export
 #' @param Chronicle The chronicle data frame.
@@ -11,15 +11,15 @@ efc <- function(Chronicle, VarSetup){
     ## But first, note that the data frame 'VarSetup' is appended
     ## a column 'mode', which gives the storage mode of variables
     ## in the final result, i.e., numeric, logical, factor, etc.
-    
+
     #########################################
     ### Beginning of "main program"!        #
     #########################################
-    
+
     ## Note: part3 is now first!
     cat("\npart3: \n")
     VarSetup <- part3(VarSetup, Chronicle, keep = FALSE) # p3 is a logical
-    
+
     cat("part1: \n")
     p1 <- part1(VarSetup)
     cat("\npart2: \n")
@@ -227,7 +227,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ## is equvalent to (?) (tt == TypeTransition):
 
     TypeDateFormat <- dplyr::left_join(Chronicle, tt, by = "Type")
-    
+
     ##++++++++++++++++++++++++++++++++++++++++++++++++++++ Start ++++
     if (FALSE){
     TypeDateFormat$emptyType <- TypeDateFormat$Value == ""
@@ -238,7 +238,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     TypeDateFormat <- TypeDateFormat[TypeDateFormat$Transition != "End" &
                                          TypeDateFormat$Type != "AtRisk", ]
     TypeDateFormat <- dplyr::group_by_(TypeDateFormat, ~Type)
-    TypeDateFormat <- dplyr::summarise_at(TypeDateFormat, dplyr::vars(emptyType), 
+    TypeDateFormat <- dplyr::summarise_at(TypeDateFormat, dplyr::vars(emptyType),
                                           dplyr::funs(min, max))
     TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~(max == 1 & min == 1))
         ##Same as 'filter_(minempty == 1)'?
@@ -246,19 +246,22 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     TypeDateFormat <- dplyr::filter_(TypeDateFormat, ~!duplicated(Type))
     }
     ##++++++++++++++++++++++++++++++++++++++++++++++++++++++ End ++
-    
+
     ## The code from '++ Start ++' to '++ End ++' above is an attempt yo sort out the
-    ## distinct Type's that has a non-empty value with Transition not equal to 'End' 
-    ## or 'AtRisk'. 
+    ## distinct Type's that has a non-empty value with Transition not equal to 'End'
+    ## or 'AtRisk'.
     ##
     ## Can be done much simpler (I hope):
-        
+
+    ## ++++++++++++++++ New start ++++++++++++++++++++++++++++++++++
     TypeDateFormat <- TypeDateFormat[TypeDateFormat$Value != "", ]
-    TypeDateFormat <- TypeDateFormat[!(TypeDateFormat$Transition %in% 
+    TypeDateFormat <- TypeDateFormat[!(TypeDateFormat$Transition %in%
                                            c("Atrisk", "End")), ]
     TypeDateFormat <- TypeDateFormat["Type"]
     TypeDateFormat <- TypeDateFormat[!duplicated(TypeDateFormat$Type),]
     TypeDateFormat$DateFormat <- "%Y-%m-%d"
+    ## ++++++++++++++++ New End ++++++++++++++++++++++++++++++++++++
+
     ##TypeDateFormat
     if (keep){
         save(TypeDateFormat, file = "TypeDateFormat.rda")
@@ -284,10 +287,10 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
 
     ## Now the
     who <- DayFracOneDate$Value == "" & DayFracOneDate$Transition != "End"
-    DayFracOneDate$ChangeDate <- paste(DayFracOneDate$Year, 
-                                       DayFracOneDate$Month, 
+    DayFracOneDate$ChangeDate <- paste(DayFracOneDate$Year,
+                                       DayFracOneDate$Month,
                                        DayFracOneDate$Day, sep = "-")
-    DayFracOneDate$ChangeDate <- as.Date(DayFracOneDate$ChangeDate, 
+    DayFracOneDate$ChangeDate <- as.Date(DayFracOneDate$ChangeDate,
                                          format = TypeDateFormat$DateFormat)
     DayFracOneDate$Value[who] <- as.character(DayFracOneDate$ChangeDate[who])
     ##DayFracOneDate <- dplyr::select_(DayFracOneDate, -Year, -Month, -Day)
@@ -306,7 +309,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
         ##dplyr::mutate_(dtype = is.na(ChangeDate)) %>% # Not really necessary (?)
         ##dplyr::arrange(Id_I, ChangeDate, dtype) %>%
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~ChangeDate, ~dtype)
-    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp = seq_len(n()), 
+    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp = seq_len(n()),
                                     temp1 = ("temp" == 1 & !is.na("ChangeDate")))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~temp1)
     DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = temp1 * seq_len(n()))
@@ -333,7 +336,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ## ExtractionFile:
 
     ExtractionFile <- dplyr::select_(DayFracOneDate, -numDate)
-    ExtractionFile <- dplyr::left_join(ExtractionFile, DayFracOneDate1, 
+    ExtractionFile <- dplyr::left_join(ExtractionFile, DayFracOneDate1,
                                        by = c("Id_I", "ChangeDate", "Transition"))
     ## Here 'Stata' continues with
     ## drop if _merge == 2
