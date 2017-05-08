@@ -235,7 +235,7 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     if (FALSE){
     TypeDateFormat$emptyType <- TypeDateFormat$Value == ""
     ##TypeDateFormat <- dplyr::filter_(TypeDateFormat, (Transition != "End") &
-      ##                                              (Type != "AtRisk"))
+      ##                                              (Type != atrisk))
     TypeDateFormat <- TypeDateFormat[!is.na(TypeDateFormat$Transition) &
                                          !is.na(TypeDateFormat$Type), ]
     TypeDateFormat <- TypeDateFormat[TypeDateFormat$Transition != "End" &
@@ -251,13 +251,13 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     ##++++++++++++++++++++++++++++++++++++++++++++++++++++++ End ++
 
     ## The code from '++ Start ++' to '++ End ++' above is an attempt yo sort out the
-    ## distinct Type's that has a non-empty value with Transition not equal to "End"
+    ## distinct Type's that has an empty value with Transition not equal to "End"
     ## or 'atrisk'.
     ##
     ## Can be done much simpler (I hope):
 
     ## ++++++++++++++++ New start ++++++++++++++++++++++++++++++++++
-    TypeDateFormat <- TypeDateFormat[TypeDateFormat$Value != "", ]
+    TypeDateFormat <- TypeDateFormat[TypeDateFormat$Value == "", ]
     TypeDateFormat <- TypeDateFormat[!(TypeDateFormat$Transition %in%
                                            c(atrisk, "End")), ]
     TypeDateFormat <- TypeDateFormat["Type"]
@@ -312,8 +312,8 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
         ##dplyr::mutate_(dtype = is.na(ChangeDate)) %>% # Not really necessary (?)
         ##dplyr::arrange(Id_I, ChangeDate, dtype) %>%
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~ChangeDate, ~dtype)
-    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp = seq_len(n()),
-                                    temp1 = ("temp" == 1 & !is.na("ChangeDate")))
+    DayFracOneDate <- dplyr::mutate(DayFracOneDate, temp = seq_len(n()),
+                                    temp1 = (temp == 1 & !is.na(ChangeDate)))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~temp1)
     DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = temp1 * seq_len(n()))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, Id_I)
