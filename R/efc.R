@@ -315,30 +315,30 @@ part2 <- function(Chronicle, atrisk = "At_risk", tt, keep = FALSE){
     DayFracOneDate <- dplyr::mutate(DayFracOneDate, temp = seq_len(n()),
                                     temp1 = (temp == 1 & !is.na(ChangeDate)))
     DayFracOneDate <- dplyr::group_by_(DayFracOneDate, ~Id_I, ~temp1)
-    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, temp2 = temp1 * seq_len(n()))
-    DayFracOneDate <- dplyr::group_by_(DayFracOneDate, Id_I)
-    DayFracOneDate <- dplyr::mutate_(DayFracOneDate, numDate = max(temp2))
-    DayFracOneDate <- dplyr::select_(DayFracOneDate, -temp, -temp1, -temp2, -dtype)
+    DayFracOneDate <- dplyr::mutate(DayFracOneDate, temp2 = temp1 * seq_len(n()))
+    DayFracOneDate <- dplyr::group_by(DayFracOneDate, Id_I)
+    DayFracOneDate <- dplyr::mutate(DayFracOneDate, numDate = max(temp2))
+    DayFracOneDate <- dplyr::select(DayFracOneDate, -temp, -temp1, -temp2, -dtype)
     if (keep){
         save(DayFracOneDate, file = "DayFracOneDate.rda")
     }
     ## DayFracOneDate1 :
 
-    DayFracOneDate1 <- dplyr::filter_(DayFracOneDate, numDate == 1 & !is.na(ChangeDate))
+    DayFracOneDate1 <- dplyr::filter(DayFracOneDate, numDate == 1 & !is.na(ChangeDate))
 
     ## What if DayFracOneDate1 is empty? Ignored for now: Implications?
 
     ##DayFracOneDate1 <- DayFracOneDate1 %>%
-    DayFracOneDate1 <- dplyr::group_by_(DayFracOneDate1, Id_I, ChangeDate)
+    DayFracOneDate1 <- dplyr::group_by(DayFracOneDate1, Id_I, ChangeDate)
     DayFracOneDate1 <- dplyr::summarize(DayFracOneDate1, DayFrac1 = max(DayFrac))
-    DayFracOneDate1 <- dplyr::mutate_(DayFracOneDate1, Transition = "End")
+    DayFracOneDate1 <- dplyr::mutate(DayFracOneDate1, Transition = "End")
     if (keep){
         save(DayFracOneDate1, file = "DayFracOneDate1.rda")
     }
 
     ## ExtractionFile:
 
-    ExtractionFile <- dplyr::select_(DayFracOneDate, -numDate)
+    ExtractionFile <- dplyr::select(DayFracOneDate, -numDate)
     ExtractionFile <- dplyr::left_join(ExtractionFile, DayFracOneDate1,
                                        by = c("Id_I", "ChangeDate", "Transition"))
     ## Here 'Stata' continues with
@@ -383,7 +383,7 @@ part4 <- function(ef, keep = FALSE){
     ## beginning of a spell (Transition = Start).
     ## *******************************************************
 
-    ef1 <- dplyr::filter_(ef, tolower(Transition) == "start")
+    ef1 <- dplyr::filter(ef, tolower(Transition) == "start")
 
     if (!NROW(ef1)){ # ef1 empty
         ##ef1 <- ef %>%
@@ -398,7 +398,7 @@ part4 <- function(ef, keep = FALSE){
     ctv <- tidyr::spread(ef1, Type, Value)
 
     ##ctv <- ctv %>%
-    ctv <- dplyr::group_by_(ctv, Id_I)
+    ctv <- dplyr::group_by(ctv, Id_I)
     ctv <- tidyr::fill(ctv, 3:NCOL(ctv))
     Covariates_time_varying <- ctv
     if (keep){
@@ -419,21 +419,21 @@ part5 <- function(ef, keep = FALSE){
 
     ## Rectangularisation of time-invariant variables
 
-    ef1 <- dplyr::filter_(ef, tolower(Transition) == "invariant")
+    ef1 <- dplyr::filter(ef, tolower(Transition) == "invariant")
     ef1$ChangeDate <- NULL
     ef1$Transition <- NULL
 
     if (!NROW(ef1)){ # ef1 empty
     ##    ef1 <- ef %>%
-        ef1 <- dplyr::select_(ef, Id_I)
-        ef1 <- dplyr::filter_(ef1, !duplicated(Id_I))
-        ef1 <- dplyr::mutate_(ef1, Type = "EmptyVar2", Value = "EmptyVal2")
+        ef1 <- dplyr::select(ef, Id_I)
+        ef1 <- dplyr::filter(ef1, !duplicated(Id_I))
+        ef1 <- dplyr::mutate(ef1, Type = "EmptyVar2", Value = "EmptyVal2")
     }
 
     cti <- tidyr::spread(ef1, Type, Value)
 
     ##cti <- cti %>%
-    cti <- dplyr::group_by_(cti, Id_I)
+    cti <- dplyr::group_by(cti, Id_I)
     cti <- tidyr::fill(cti, 2:NCOL(cti))
     Covariates_time_invariant <- cti
     if (keep){
@@ -455,15 +455,15 @@ part6 <- function(ef, keep = FALSE){
 
     ## Rectangularisation of events
     ##ef1 <- ef %>%
-    ef1 <- dplyr::filter_(ef, tolower(Transition) == "end")
-    ef1 <- dplyr::select_(ef1, -Transition)
+    ef1 <- dplyr::filter(ef, tolower(Transition) == "end")
+    ef1 <- dplyr::select(ef1, -Transition)
 
     if (!NROW(ef1)){
         ##ef1 <- ef %>%
-        ef1 <- dplyr::select_(ef, Id_I)
-        ef1 <- dplyr::filter_(ef1, !duplicated(Id_I))
-        ef1 <- dplyr::mutate_(ef1, Type = "EmptyVar0", Value = "EmptyVal0")
-        ef1 <- dplyr::mutate_(ef1, ChangeDate = as.Date("1900-01-01"), DayFrac = NA)
+        ef1 <- dplyr::select(ef, Id_I)
+        ef1 <- dplyr::filter(ef1, !duplicated(Id_I))
+        ef1 <- dplyr::mutate(ef1, Type = "EmptyVar0", Value = "EmptyVal0")
+        ef1 <- dplyr::mutate(ef1, ChangeDate = as.Date("1900-01-01"), DayFrac = NA)
     }
 
     ef1$Value[is.na(ef1$Value) | ef1$Value == ""] <- 1
@@ -471,7 +471,7 @@ part6 <- function(ef, keep = FALSE){
     eed <- tidyr::spread(ef1, Type, Value)
 
     ##eed <- eed %>%
-    eed <- dplyr::group_by_(eed, Id_I)
+    eed <- dplyr::group_by(eed, Id_I)
     eed <- tidyr::fill(eed, 3:NCOL(eed))
     Events_end_dates <- eed
     if (keep){
@@ -490,27 +490,27 @@ part7 <- function(ef, ctv, cti, eed, keep = FALSE){
     ## start date and time-fixed covariates and end-date events."
     ## ***********************************************************
     ef <- dplyr::ungroup(ef)
-    ef <- dplyr::filter_(ef, !is.na(ChangeDate))
-    ef <- dplyr::select_(ef, Id_I, ChangeDate, Transition)
+    ef <- dplyr::filter(ef, !is.na(ChangeDate))
+    ef <- dplyr::select(ef, Id_I, ChangeDate, Transition)
     ef <- dplyr::distinct(ef, Id_I, ChangeDate, Transition)
     ef <- dplyr::arrange(ef, Id_I, ChangeDate, Transition)
-    ef <- dplyr::group_by_(ef, Id_I)
-    ef <- dplyr::mutate_(ef, numRows = length(Transition))
+    ef <- dplyr::group_by(ef, Id_I)
+    ef <- dplyr::mutate(ef, numRows = length(Transition))
 
     ef$rowType <- "-1"
     ef$rowType[ef$numRows == 2] <- ef$Transition[ef$numRows == 2]
 
     ef <- dplyr::ungroup(ef)
-    ef <- dplyr::select_(ef, Id_I, ChangeDate, rowType)
+    ef <- dplyr::select(ef, Id_I, ChangeDate, rowType)
     ef <- dplyr::distinct(ef, Id_I, ChangeDate, rowType)
-    ef <- dplyr::select_(ef, -rowType)
+    ef <- dplyr::select(ef, -rowType)
 
     ##ef <- ef %>%
     ef <- dplyr::arrange(ef, Id_I, ChangeDate) # Alreay sorted?
     ef <- dplyr::rename(ef, date1 = ChangeDate)
-    ef <- dplyr::group_by_(ef, Id_I)
-    ef <- dplyr::mutate_(ef, date2 = lead(date1))
-    ef <- dplyr::filter_(ef, !is.na(date2))
+    ef <- dplyr::group_by(ef, Id_I)
+    ef <- dplyr::mutate(ef, date2 = lead(date1))
+    ef <- dplyr::filter(ef, !is.na(date2))
     ef <- dplyr::ungroup(ef)
 
     ## Merge time-varying covariates:
@@ -527,7 +527,7 @@ part7 <- function(ef, ctv, cti, eed, keep = FALSE){
     ##ef <- ef %>%
     ef <- dplyr::left_join(ef, eed, by = c("Id_I", "date2"))
 
-    ef <- dplyr::filter_(ef, !is.na(AtRisk))
+    ef <- dplyr::filter(ef, !is.na(AtRisk))
 
     n <- length(ef)
     ef[is.na(ef[[n]]), n] <- 0 # Does this work?
@@ -570,7 +570,8 @@ part8 <- function(pef, vs, keep = FALSE){
 
     ## "Dropping spells when the individual is not at risk"
 
-    Episodes_file <- dplyr::filter_(pef, as.numeric(AtRisk) != 0) ##%>%
+    ##Episodes_file <- dplyr::filter(pef, as.numeric(AtRisk) != 0) ##%>%
+    Episodes_file <- pef[as.numeric(pef$AtRisk) > 0.5, ]
         ##dplyr::select_(-AtRisk, -DayFrac, -Transition)
     Episodes_file$AtRisk <- NULL
     Episodes_file$DayFrac <- NULL
