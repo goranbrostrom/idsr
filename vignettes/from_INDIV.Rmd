@@ -15,7 +15,7 @@ vignette: >
 
 # Introduction 
 
-This is an example of how to go directly from an *INDIVIDUAL* file to an episodes file. We used a file fom DDB, Umeå, covering the Skellefteå area ca 1800--1900. However, it turned out to be a not-so-good example, since it follows IDS Version 3, while we are working with Version 4. So, we go directly to the example data base created by [Luciana Quaranta](http://www.ekh.lu.se/personal/staff/ekh-lqn). It is included in this **R** package.
+This is an example of how to go directly from an *INDIVIDUAL* file to an episodes file. We used a file from DDB, Umeå, covering the Skellefteå area ca 1800--1900. However, it turned out to be a not-so-good example, since it follows IDS Version 3, while we are working with Version 4. So, we go directly to the example data base created by [Luciana Quaranta](http://www.ekh.lu.se/personal/staff/ekh-lqn). It is included in this **R** package.
 
 
 
@@ -139,7 +139,19 @@ So we have five types of events, and each type must be connected to a covariate.
 |Start_observation | present      | TRUE    | logical  |
 |End_observation   | present      | FALSE   | logical  |
 
-So, the generated covariates are *alive*, *civil_status*, and *present*. We create these new variables in the *observation* frame:
+So, the generated covariates are *alive*, *civil_status*, and *present*.
+We create a translation data frame:
+
+```{r translate}
+trans <- data.frame(Type = c("Birth", "Death", "Marriage", "Start_observation", "End_observation"),
+                    Covariate = c("alive", "alive", "civil_status", "present", "present"),
+                    Level = c("TRUE", "FALSE", "married", "TRUE", "FALSE"),
+                    Mode = c("logical", "logical", "factor", "logical", "logical"),
+                    stringsAsFactors = FALSE)
+```
+
+
+We create these new variables in the *observation* frame:
 
 ```{r newvar}
 newvar <- c("alive", "civil_status", "present")
@@ -153,7 +165,39 @@ obs <- observation %>%
 knitr::kable(head(obs))
 ```
 
-Now the values of *alive*, *civil_status*, and *present* must be filled in.
+Now the values of *alive*, *civil_status*, and *present* must be filled in. *alive* and *present* start as *FALSE* and we let *civil_status* be *unmarried* until otherwise proven (*Type = Marriage*).
+
+```{r fillup}
+obs$civil_status <- "unmarried"
+```
+
+These "start values" are now "filled down" individually:
+
+```{r filldownstart}
+for (id in unique(obs$Id_I)){
+    what <- which(obs$Id_I == id)
+    ##cat(what, "\n")
+    n <- length(what)
+    ob <- obs[what, ]
+    typ <- ob$Type[1]
+    row <- which(trans$Type == typ)
+    vari <- trans$Covariate[row]
+    value <- trans$Level[row]
+    ob[[vari]][1:n] <- value
+    if (n > 1){
+        for (i in 2:n){
+            typ <- ob$Type[i]
+            row <- which(trans$Type == typ)
+            vari <- trans$Covariate[row]
+            value <- trans$Level[row]
+            ob[[vari]][i:n] <- value
+        }
+    }
+    obs[what, ] <- ob
+}
+```
+
+
 
 
 # Conclusion
