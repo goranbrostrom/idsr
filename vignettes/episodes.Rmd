@@ -143,7 +143,8 @@ So *events* is summarised as
 summary(events)
 ```
 
-The columns *Year*, *Month*, *Day*, and *Day_Frac* are together forming a *time stamp*, and our first duty is to introduce the **R** *Date* format:
+The columns *Year*, *Month*, *Day*, and *Day_Frac* are together forming a 
+*time stamp*, and our first duty is to introduce the **R** *Date* format:
 
 ```{r dateformat}
 dates <- as.Date(paste(events$Year, events$Month, events$Day, sep = "-"))
@@ -152,7 +153,9 @@ events$Year <- events$Month <- events$Day <- NULL # remove ...
 summary(events)
 ```
 
-The next step is to add the *DayFrac* to *date* (internally, a *Date* is just a numeric value). Before that we must change *NA* to 0 (zero). Finally *DayFrac* is removed from *events*
+The next step is to add the *DayFrac* to *date* (internally, a *Date* is just 
+a numeric value). Before that we must change *NA* to 0 (zero). Finally 
+*DayFrac* is removed from *events*
 
 ```{r adddayfrac}
 events$DayFrac[is.na(events$DayFrac)] <- 0
@@ -168,12 +171,23 @@ dups <- duplicated(events)
 (anydup <- sum(dups))
 ```
 
-So there are no duplicated rows in *events*. Next we create new variables from the *Type* and 
-*Value* columns with *tidyr::spread*.
+So there are no duplicated rows in *events*. Next we create new variables from 
+the *Type* and  *Value* columns with *tidyr::spread*.
 
 ```{r}
 episodes <- tidyr::spread_(events, key_col = "Type", value = "Value", convert = TRUE)
 knitr::kable(head(episodes))
 ```
 
+Then we need to "fill down" missing values, by *Id_I*.
+
+```{r filldownidi}
+varns <- unique(events$Type)
+for (id in unique(episodes$Id_I)){
+    who <- episodes$Id_I == id
+    epi <- tidyr::fill_(episodes[who, ], fill_cols = varns)
+    episodes[who, ] <- epi
+}
+knitr::kable(head(episodes))
+```
 
