@@ -1,0 +1,133 @@
+---
+title: "Creating episodes"
+author: "Göran Broström"
+date: "14 maj 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(idsr)
+```
+
+## Introduction
+
+This is the **R** version of creating an *episodes* data frame from a 
+*chronicle* and an *instruction* frame. The *chronicle* is set up exactly as 
+in the Stata version (Quaranta 2015), while the *instruction* frame is an 
+extended version of the *VarSetup* file. 
+
+We have a slightly different approach here in that the *chronicle* is supposed 
+to contain records of *events*. These events define in turn *changes in levels*
+of *variables*, that must be defined.
+
+This approach also forces us to strip off time-fixed covariates, 
+such as *sex*, *birth place*, *birth order*, etc, from the *chronicle*. These 
+variables are marked *Transition = "Invariant"* in the *instruction*.
+
+The code writing is exemplified with data from DDB.
+
+## The instruction file
+
+The *instruction* frame must contain the variables (columns) *Type*, 
+*Transition*, *Duration*, *variable*, and *mode* (to be explained). Our example 
+*instruction* looks like this:
+
+```{r instruction}
+knitr::kable(instruction)
+```
+
+We split this frame into two frames, *ins_inv*, which contains all time-fixed 
+variables, and *ins_events* containing the rest. Note that *Type == variable* in 
+*invariant*, so we skip *Type*.
+
+```{r splitinst}
+ins_inv <- instruction[instruction$Transition == "Invariant", ]
+ins_inv$Type <- ins_inv$Transition <- NULL # Remove ...
+ins_events <- instruction[instruction$Transition != "Invariant", ]
+```
+
+## The chronicle file
+
+The *chronicle* frame must contain the same *Type*s as the *instruction*. It is
+an error if this is not fulfilled. If the *chronicle* contains *Type*s not 
+present in the *instruction*, the corresponding rows of *chronicle* are removed
+with a *warning*.
+
+```{r checktypes}
+chronicle <- indi
+chronicle$Type[chronicle$Type == "Child_sex"] <- "Sex"
+chronicle$Type[chronicle$Type == "Infant_death"] <- "Death"
+chronicle$Type[chronicle$Type == "Child_birthdate"] <- "Birthdate"
+types <- unique(chronicle$Type)
+not_there <- !(instruction$Type %in% types)
+if (sum(not_there)){
+    cat("The following Type(s) are missing:\n")
+    cat(instruction$Type[not_there])
+    stop("The instruction must be corrected.")
+}
+not_there <- !(types %in% instruction$Type)
+if (sum(not_there)){
+    chronicle <- chronicle[chronicle$Type %in% instruction$Type, ]
+    warning("Rows removed in 'chronicle'")
+}
+```
+
+So, our test data pass the tests and we now split the *chronicle* into *inv*, 
+the invariant part, and the rest, *events*.
+
+```{r}
+inv <- chronicle[chronicle$Type %in% ins_inv$variable, ]
+events <- chronicle[!(chronicle$Type %in% ins_inv$variable), ]
+```
+
+Some of the *Type*s in the *inv* frame have a time stamp, but no *Value*. For 
+those Types, the *Value* is set to the time stamp, in *character* format.
+
+```{r datetypevalue}
+datum <- as.Date(paste(inv$Year, inv$Month, inv$Day, sep = "-"))
+fill_value <- !is.na(datum)
+inv$Value[fill_value] <- as.character(datum[fill_value])
+inv$Year <- inv$Month <- inv$Day <- inv$DayFrac <- NULL # Remove ...
+```
+
+Now it looks like this (first few records).
+
+```{r lookatinv}
+knitr::kable(head(inv))
+```
+
+We now transform *inv* to a data frame with new variables given by the content 
+in *inv$Type*. The function *spread_* (note the trailing *_*) from tha package 
+*tidyr* does the job.
+
+```{r maketidy}
+person <- tidyr::spread_(inv, key_col = "Type", value_col = "Value",
+                         convert = TRUE)
+```
+
+The *spread_* data frame, *person*, now looks like
+
+```{r}
+str(person)
+```
+
+It looks OK, but we need to have the right "mode" of the variables. For 
+instance, we want the variable "Sex" to be a *factor* with the levels *"Female"*
+and *"male"*.
+
+```{r convertinv}
+for (nom in ins_inv$variable){
+    mode <- ins_inv$mode[ins_inv$variable == nom]
+    cat("mode = ", mode, "\n")
+    if (mode == "date"){
+        person[nom] <- as.Date(person[[nom]])
+    }else if(mode == "factor"){
+        person[nom] <- as.factor(person[[nom]])
+    }else{
+        person[nom] <- as.vector(person[[nom]], mode = mode)
+    }
+}
+str(person)
+```
+
