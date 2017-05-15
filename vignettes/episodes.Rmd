@@ -27,7 +27,7 @@ variables are marked *Transition = "Invariant"* in the *instruction*.
 
 The code writing is exemplified with data from DDB.
 
-## The instruction file
+## The *instruction* data frame
 
 The *instruction* frame must contain the variables (columns) *Type*, 
 *Transition*, *Duration*, *variable*, and *mode* (to be explained). Our example 
@@ -47,7 +47,7 @@ ins_inv$Type <- ins_inv$Transition <- NULL # Remove ...
 ins_events <- instruction[instruction$Transition != "Invariant", ]
 ```
 
-## The chronicle file
+## The *chronicle* file
 
 The *chronicle* frame must contain the same *Type*s as the *instruction*. It is
 an error if this is not fulfilled. If the *chronicle* contains *Type*s not 
@@ -81,6 +81,8 @@ inv <- chronicle[chronicle$Type %in% ins_inv$variable, ]
 events <- chronicle[!(chronicle$Type %in% ins_inv$variable), ]
 ```
 
+### The time invariant frame (*person*)
+
 Some of the *Type*s in the *inv* frame have a time stamp, but no *Value*. For 
 those Types, the *Value* is set to the time stamp, in *character* format.
 
@@ -98,7 +100,7 @@ knitr::kable(head(inv))
 ```
 
 We now transform *inv* to a data frame with new variables given by the content 
-in *inv$Type*. The function *spread_* (note the trailing *_*) from tha package 
+in *inv$Type*. The function *spread_* (note the trailing '_') from the package 
 *tidyr* does the job.
 
 ```{r maketidy}
@@ -119,7 +121,7 @@ and *"male"*.
 ```{r convertinv}
 for (nom in ins_inv$variable){
     mode <- ins_inv$mode[ins_inv$variable == nom]
-    cat("mode = ", mode, "\n")
+    ##cat("mode = ", mode, "\n")
     if (mode == "date"){
         person[nom] <- as.Date(person[[nom]])
     }else if(mode == "factor"){
@@ -130,4 +132,48 @@ for (nom in ins_inv$variable){
 }
 str(person)
 ```
+
+This looks fine (but note that *Sex* has *three* levels ...).
+
+### The Time varying frame (*events*)
+
+So *events* is summarised as
+
+```{r sumevents}
+summary(events)
+```
+
+The columns *Year*, *Month*, *Day*, and *Day_Frac* are together forming a *time stamp*, and our first duty is to introduce the **R** *Date* format:
+
+```{r dateformat}
+dates <- as.Date(paste(events$Year, events$Month, events$Day, sep = "-"))
+events$date <- dates
+events$Year <- events$Month <- events$Day <- NULL # remove ...
+summary(events)
+```
+
+The next step is to add the *DayFrac* to *date* (internally, a *Date* is just a numeric value). Before that we must change *NA* to 0 (zero). Finally *DayFrac* is removed from *events*
+
+```{r adddayfrac}
+events$DayFrac[is.na(events$DayFrac)] <- 0
+events$date <- events$date + events$DayFrac
+events$DayFrac <- NULL # remove ...
+knitr::kable(head(events))
+```
+
+Next we have to check for duplicates in *events*.
+
+```{r}
+dups <- duplicated(events)
+(anydup <- sum(dups))
+```
+
+So there are no duplicated rows in *events*. Next we create new variables from the *Type* and 
+*Value* columns with *tidyr::spread*.
+
+```{r}
+episodes <- tidyr::spread_(events, key_col = "Type", value = "Value", convert = TRUE)
+knitr::kable(head(episodes))
+```
+
 
