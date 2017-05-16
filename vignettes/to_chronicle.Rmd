@@ -1,0 +1,105 @@
+---
+title: "From INDIVIDUAL to Chronicle"
+author: "Göran Broström"
+date: "`r Sys.Date()`"
+output: 
+   rmarkdown::html_vignette:
+      toc: true
+      depth: 3
+      number_sections: true
+vignette: >
+  %\VignetteIndexEntry{From  INDIVIDUAL to Chronicle}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Introduction 
+
+This is an example of how to go from an *INDIVIDUAL* file to a *chronicle* file. We use the example data base created by [Luciana Quaranta](http://www.ekh.lu.se/personal/staff/ekh-lqn). It is included in this **R** package.
+
+
+
+# Quaranta's Demo Data Base
+
+To make it really simple, with no messy data, we use [Quaranta's demo data base](http://www.ehps-net.eu/article/stata-programs-using-intermediate-data-structure-ids-construct-files-statistical-analysis), which is included in this package as *external data* (an excel file). We convert the first sheet in the file to the **R** data frame *individual*.
+
+```{r loaddemo, message=FALSE}
+x <- system.file("extdata", "DemoDatabase.xlsx", mustWork = TRUE, package = "idsr")
+library(readxl)
+library(dplyr)
+individual <- read_excel(x, sheet = 1)
+names(individual)
+```
+
+It turns out that the variables *Start_day*, *Start_month*, *Start_year*, *End_day*, *End_month*, and *End_year* all contain only missing values (*NA*), so they can safely be removed.  
+
+```{r, tabidd, Source}
+with(individual, table(Id_D))
+```
+
+Obviously, we can get rid of the *Id_D* column as well:
+
+```{r getrioof}
+individual$Start_day <- NULL
+individual$Start_month <- NULL
+individual$Start_year <- NULL
+individual$End_day <- NULL
+individual$End_month <- NULL
+individual$End_year <- NULL
+individual$Id_D <- NULL
+##individual <- individual %>%
+  ##  select(Id_I, Type, Value, Value_Id_C, Day, Month, Year, Date_type, Source) %>%
+    ##arrange(Id_I, Year, Month, Day)
+knitr::kable(head(individual, 8))
+```
+
+
+This is the full information available for individual No. `r as.integer(individual$Id_I[1])`.
+
+## Properties of a chronicle file
+
+The chronicle file should only contain variables corresponding to *Date_type = Event*. The other variables are time-constant and we keep them separate from the rest: They are very easy to add on at the end.
+
+```{r splitup}
+person <- individual[individual$Date_type != "Event", ]
+chronicle <- individual[individual$Date_type == "Event", ]
+chronicle$Date_Type <- NULL # Not needed
+```
+
+So, the *chronicle* frame looks like this at the start:
+
+
+```{r chronstart}
+knitr::kable(chronicle)
+```
+
+We obvously don't need the variables *Value_Id_C* and *Source* in *chronicle*, so we remove them. 
+We also convert the *Year-Month-Year* triple into a *Date* variable.
+
+```{r}
+chronicle$Value_Id_C <- NULL
+chronicle$Source <- NULL
+chronicle$date <- as.Date(paste(chronicle$Year, 
+                                chronicle$Month, 
+                                chronicle$Day, sep = "-"))
+chronicle
+```
+
+For each distinct *Type* (event) we need to define a *variable*: The events *Birth* and *Death* corresponds to the logical variable *alive* (becomes *TRUE* at a birth and *FALSE* at a death). The event *Marriage* corresponds to the variable *civil_status* (becomes *married* at a marriage)
+
+
+
+# Conclusion
+
+
+Yet to be written ...
+
+# References
+
+Alter, George & Kees Mandemakers, 'The Intermediate Data Structure (IDS) for Longitudinal Historical Microdata, version 4', *Historical Life Course Studies* 1 (2014), 1--26.
+[http](http://hdl.handle.net/10622/23526343-2014-0001?locatt=view:master)
+
+Quaranta, Luciana, 'Using the Intermediate Data Structure (IDS) to Construct Files for Statistical Analysis', *Historical Life Course Studies* 2 (2015), 86--107.
+[http](http://hdl.handle.net/10622/23526343-2015-0007?locatt=view:master)
+
+Quaranta, Luciana, 'Stata Programs for Using the Intermediate Data Structure (IDS) to Construct files for Statistical Analysis', *Historical Life Course Studies* 3 (2015), 1--19. [http](http://hdl.handle.net/10622/23526343-2016-0001?locatt=view:master())
