@@ -56,13 +56,18 @@ knitr::kable(head(individual, 8))
 
 This is the full information available for individual No. `r as.integer(individual$Id_I[1])`.
 
-## Properties of a chronicle file
+## Properties of a chronicle frame
 
-The chronicle file should only contain variables corresponding to *Date_type = Event*. The other variables are time-constant and we keep them separate from the rest: They are very easy to add on at the end.
+The chronicle frame should only contain variables corresponding to *Date_type = Event*. However, this is too restrictive, because for some reason events of certain types are *not* reported as *Event*. From a strict database-management perspective that is reasonable, but not in the afterworld of data (survival) analysis. Therefore I let all rows with a (correct) date be part of the chronicle frame.
+
+The other variables are time-constant and we keep them separate from the rest: They are very easy to add on at the end. There are two exceptions: The *Declared* Types *Start_observation* and *End_observation* need to be in the chronicle frame
 
 ```{r splitup}
-person <- individual[individual$Date_type != "Event", ]
-chronicle <- individual[individual$Date_type == "Event", ]
+##to_chron <- (individual$Date_type == "Event") | 
+  ##          (individual$Type %in% c("Start_observation", "End_observation"))
+to_chron <- !is.na(individual$Year)
+personal <- individual[!to_chron, ]
+chronicle <- individual[to_chron, ]
 chronicle$Date_Type <- NULL # Not needed
 ```
 
@@ -73,26 +78,49 @@ So, the *chronicle* frame looks like this at the start:
 knitr::kable(chronicle)
 ```
 
-We obvously don't need the variables *Value_Id_C* and *Source* in *chronicle*, so we remove them. 
-We also convert the *Year-Month-Year* triple into a *Date* variable.
+We obvously don't need the variables *Value_Id_C* and *Source* in *chronicle*, so we remove them. The variable *Date_type* can also be removed, since it is constant (*Event*) in this frame.
+We also convert the *Year-Month-Year* triple into a *Date* variable, after wich we can remove the triple. After that the frame is sorted by *Id_I*,*date*, and in case of tied dates, *Type == Start_observation* is first and *Type == End_observation* is last.
 
 ```{r}
-chronicle$Value_Id_C <- NULL
-chronicle$Source <- NULL
+##chronicle$Value_Id_C <- NULL
+##chronicle$Source <- NULL
+##chronicle$Date_type <- NULL
 chronicle$date <- as.Date(paste(chronicle$Year, 
                                 chronicle$Month, 
                                 chronicle$Day, sep = "-"))
-chronicle
+##chronicle$Year <- NULL
+##chronicle$Month <- NULL
+##chronicle$Day <- NULL
+chronicle <- chronicle[, c("Id_I", "Type", "Value", "date")]
+chronicle <- chronicle[order(chronicle$Id_I,
+                             chronicle$date,
+                             chronicle$Type != "Start_observation",
+                             chronicle$Type == "End_observation"), ]
+knitr::kable(chronicle)
 ```
 
-For each distinct *Type* (event) we need to define a *variable*: The events *Birth* and *Death* corresponds to the logical variable *alive* (becomes *TRUE* at a birth and *FALSE* at a death). The event *Marriage* corresponds to the variable *civil_status* (becomes *married* at a marriage)
+Very neat!
+
+Now, for each distinct *Type* (event) we need to define a *variable*: The events *Birth* and *Death* corresponds to the logical variable *alive* (becomes *TRUE* at a birth and *FALSE* at a death). The event *Marriage* corresponds to the variable *civil_status* (becomes *married* at a marriage, and is *unmarried* at start).
+
+We also note that not all individuals have a *Birth* event (observed). However, all have a *Birth_date*, in the *personal* frame.  Let us look at it.
+
+## The *personal* frame
+
+The *personal* frame is made tidy in a similar manner as the chronicle frame.
+
+```{r tidypersonal}
+personal <- personal[, c("Id_I", "Type", "Value", "Value_Id_C")]
+knitr::kable(personal)
+```
 
 
 
 # Conclusion
 
-
-Yet to be written ...
+So, the input to an *"EpisodesFileCreator"* should be the frames *chronicle* 
+and *personal*. In addition, we need a description frame linking *events* to 
+*variables* in the *chronicle* frame. See the *episodes* vignette for the continuation.
 
 # References
 
