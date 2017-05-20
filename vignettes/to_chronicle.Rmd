@@ -103,6 +103,38 @@ Very neat!
 
 Now, for each distinct *Type* (event) we need to define a *variable*: The events *Birth* and *Death* corresponds to the logical variable *alive* (becomes *TRUE* at a birth and *FALSE* at a death). The event *Marriage* corresponds to the variable *civil_status* (becomes *married* at a marriage, and is *unmarried* at start).
 
+So,
+
+```{r insertvarr}
+chronicle$Variable <- NA
+take <- chronicle$Type %in% c("Birth", "Birth_date")
+chronicle$Variable[take] <- "alive"
+chronicle$Value[take] <- "yes"
+##
+take <- chronicle$Type %in% c("Death", "Death_date")
+chronicle$Variable[take] <- "alive"
+chronicle$Value[take] <- "no"
+##
+
+take <- chronicle$Type == "Start_observation"
+chronicle$Variable[take] <- "present"
+chronicle$Value[take] <- "yes"
+take <- chronicle$Type == "End_observation"
+chronicle$Variable[take] <- "present"
+chronicle$Value[take] <- "no"
+##
+chronicle$Variable[chronicle$Type == "Occupation"] <- "occupation"
+##
+take <- chronicle$Type == "Marriage"
+chronicle$Variable[take] <- "civil_status"
+chronicle$Value[take] <- "married"
+## Reorder:
+chronicle <- chronicle[, c("Id_I", "Type", "Variable", "Value", "date")]
+knitr::kable(chronicle)
+
+```
+
+
 We also note that not all individuals have a *Birth* event (observed). However, all have a *Birth_date*, in the *personal* frame.  Let us look at it.
 
 ## The *personal* frame
