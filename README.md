@@ -1,8 +1,15 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+News
+====
+
+This is *idsr Version 0.1.0*, the first *release* (21 May 2017).
+
 idsr
 ====
 
 *idsr* is an **R** package for reading data from data bases stored in the IDS format (Alter and Mandemakers, 2014) and creating data in a form suitable for statistical analysis (in **R**).
+
+It is still under development and you use it on your own risk. But please try it and report!
 
 ### Installation
 
@@ -14,7 +21,7 @@ Use Hadley Wickham's *devtools*:
 and then
 
     > library(idsr)
-    > episodes <- efc(indi, varset)
+    > episodes <- episodes(chronicle, personal)
 
 and read the documentation and vignette.
 
