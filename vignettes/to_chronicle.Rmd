@@ -9,7 +9,7 @@ output:
       number_sections: true
 vignette: >
   %\VignetteIndexEntry{From  INDIVIDUAL to Chronicle}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::knitr}
   \usepackage[utf8]{inputenc}
 ---
 
@@ -78,8 +78,13 @@ So, the *chronicle* frame looks like this at the start:
 knitr::kable(chronicle)
 ```
 
-We obvously don't need the variables *Value_Id_C* and *Source* in *chronicle*, so we remove them. The variable *Date_type* can also be removed, since it is constant (*Event*) in this frame.
-We also convert the *Year-Month-Year* triple into a *Date* variable, after wich we can remove the triple. After that the frame is sorted by *Id_I*,*date*, and in case of tied dates, *Type == Start_observation* is first and *Type == End_observation* is last.
+We obvously don't need the variables *Value_Id_C* and *Source* in *chronicle*,
+so we remove them. The variable *Date_type* can also be removed, since it is 
+constant (*Event*) in this frame.
+We also convert the *Year-Month-Year* triple into a *Date* variable, after wich 
+we can remove the triple. After that the frame is sorted by *Id_I*,*date*, and 
+in case of tied dates, *Type == Start_observation* is first and 
+*Type == End_observation* is last.
 
 ```{r}
 ##chronicle$Value_Id_C <- NULL
@@ -99,7 +104,25 @@ chronicle <- chronicle[order(chronicle$Id_I,
 knitr::kable(chronicle)
 ```
 
-Very neat!
+Very neat! However, for a specific study we need a well-defined *start event* 
+and a likewise well-defined *end event*. We exemplify by thinking of 
+*mortality*: Following individuals from birth to death. So our start event is 
+*Birth*, and it must be defined (including a date) for all individuals. The end
+event is *Death*, but its date is not necessarily known to us 
+("right censoring"). Note the difference: We may not observe a birth in our 
+data, but its date must be known.
+
+For our purpose, *Birth* and *Birth_date* carry the same information in the 
+presence of the event *Start_observation*, which is mandatory. So we replace all 
+*Type = Birth_date* by *Type = Birth* and then remove duplicates:
+
+```{r dupbirths}
+chronicle$Type[chronicle$Type == "Birth_date"] <- "Birth"
+chronicle <- chronicle[!duplicated(chronicle), ]
+```
+
+Next we must define two new logical variables, *start_event* (TRUE exactly once for all individuals) and *end_event* (TRUE at most once for all). However, it s more practical to defer that exercise to the episodes file creation.
+
 
 Now, for each distinct *Type* (event) we need to define a *variable*: The events *Birth* and *Death* corresponds to the logical variable *alive* (becomes *TRUE* at a birth and *FALSE* at a death). The event *Marriage* corresponds to the variable *civil_status* (becomes *married* at a marriage, and is *unmarried* at start).
 
@@ -129,13 +152,37 @@ take <- chronicle$Type == "Marriage"
 chronicle$Variable[take] <- "civil_status"
 chronicle$Value[take] <- "married"
 ## Reorder:
-chronicle <- chronicle[, c("Id_I", "Type", "Variable", "Value", "date")]
+chronicle <- chronicle[, c("Id_I", "Variable", "Value", "date", "Type")]
 knitr::kable(chronicle)
-
 ```
 
+There is one problem remaining: Duplicates. Let us look at individual 
+*Id_I = 1548468*:
 
-We also note that not all individuals have a *Birth* event (observed). However, all have a *Birth_date*, in the *personal* frame.  Let us look at it.
+```{r iddup}
+knitr::kable(chronicle[chronicle$Id_I == 1548468, ])
+```
+
+Two problems:
+
+1. Two birth notifications on the same date (thank heaven). Easy to fix: Remove
+   one of them.
+
+2. Death on the same day as birth. Must keep both (of course), but we must 
+   decide which comes first. That is also easy, birth before death. Could be 
+   solved by 
+   introcucing a *DayFrac*, meaning that we add a small number (0.02, say)to 
+   the death date, but we avoid that, at least for the moment. 
+   
+   
+
+
+```{r dayfrac}
+chronicle <- chronicle[, c("Id_I", "Variable", "Value", "date", "Type")]
+chronicle <- chronicle[!duplicated(chronicle), ]
+##rows <- duplicated(chronicle[, c("Id_I", "Variable", "date")])   # NOTE:
+##chronicle$date[rows] <- chronicle$date[rows] + 0.02     # Outcommented!!
+```
 
 ## The *personal* frame
 
@@ -146,6 +193,14 @@ personal <- personal[, c("Id_I", "Type", "Value", "Value_Id_C")]
 knitr::kable(personal)
 ```
 
+The column *Value_Id_C* and the rows with *Type == Birth_location* are without
+useful information, so they are removed:
+
+```{r rempers}
+personal$Value_Id_C <- NULL
+personal <- personal[personal$Type != "Birth_location", ]
+knitr::kable(personal)
+```
 
 
 # Conclusion
