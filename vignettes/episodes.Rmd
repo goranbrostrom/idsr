@@ -9,12 +9,12 @@ output:
       number_sections: true
 vignette: >
   %\VignetteIndexEntry{Creating episodes}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::knitr}
   \usepackage[utf8]{inputenc}
 ---
 
 
-## Introduction
+# Introduction
 
 This is the **R** version of creating an *episodes* data frame from a 
 *chronicle* and a *personal* frame. The *chronicle* is set up 
@@ -29,13 +29,139 @@ such as *sex*, *birth place*, *birth order*, etc, from the *chronicle*. These
 variables are characterized by the absence of a time-stamp. They are stored in 
 the *personal* frame. 
 
+The function must also be told the names of the *start* and *stop* events for 
+the aimed-at analysis. We exemplify by studying mortality with birth as start 
+event and death as the final event.
+
 The code writing is exemplified with data from Quaranta (2015).
 
-## The *chronicle* file
+# The *chronicle* file
 
 ```{r get chronichle}
+start_event <- "Birth"
+end_event <- "Death"
 ##load("../data/chronicle.rda")
-head(chronicle)
-with(chronicle, table(Type, Value))
+library(idsr)
+library(tidyr)
+knitr::kable(head(chronicle))
+knitr::kable(with(chronicle, table(Variable, Value)))
 ```
+
+So we have four variables, *alive*, *present*, *civil_status*, and *occupation*.
+We "create" those variables with the aid of the function *spread_* in the 
+*tidyr* package (note that we do not need the column "Type", so we remove it first):
+
+```{r spread_it}
+chron <- chronicle[, c("Id_I", "Variable", "Value", "date", "Type")]
+chron <- chron[order(chron$Id_I, chron$date), ]
+chron <- chron[!duplicated(chron), ]
+chron <- spread_(chron, key_col = "Variable", 
+                     value_col = "Value", convert = TRUE)
+chron <- dplyr::group_by_(chron, "Id_I")
+chron <- tidyr::fill_(chron, names(chron)[-(1:2)])
+chron <- dplyr::ungroup(chron)
+knitr::kable(chron)
+```
+
+We need a "start date", that is, the date of the defining start event (in this 
+example it is date of birth).
+
+```{r startdate}
+starting <- chron[chron$Type == start_event, c("Id_I", "date")]
+indx <- match(chron$Id_I, starting$Id_I)
+chron$start_date <- starting$date[indx]
+```
+
+Each row in *chronicle* indicates a *start* of an episode, which ends at the 
+start of the next spell (for the same individual). The last row for an 
+individual is special, in that there is no "next spell", so it needs special
+treatment.
+
+We start by calculating duration since *start_date* (time in years). We call
+the result *enter*:
+
+```{r}
+enter <- as.numeric(chron$date) - as.numeric(chron$start_date)
+chron$enter <- round(enter / 365.2425, 3) # 3 decimals is enough
+```
+
+We calculate two help variables:
+
+```{r}
+indx <- tapply(chron$Id_I, chron$Id_I)
+no <- unlist(tapply(chron$Id_I, chron$Id_I, function(x) 1:length(x)))
+norec <- tapply(chron$Id_I, chron$Id_I, length)[indx]
+```
+
+The last record for each individual is characterized by *no == norec*. So,
+
+```{r addexit}
+chron$exit <- c(chron$enter[-1], NA)
+chron$exit[no == norec] <- NA
+```
+
+Now we need to introduce an indicator of an interval ending with *end_event*. 
+Call it *event*. It corresponds to the row that *precedes* the row with 
+*Type == end_event*. So,
+
+```{r}
+erows <- which(chron$Type == end_event) - 1
+chron$event <- FALSE
+chron$event[erows] <- TRUE
+```
+
+Time to clean up *chron*. 
+
+```{r cleanup}
+chron <- chron[!is.na(chron$present) & (chron$present == "yes"), ]
+chron <- chron[chron$alive == "yes", ]
+remove <- !chron$event & chron$enter == chron$exit
+chron <- chron[!remove, ]
+chron$present <- chron$date <- chron$Type <- chron$alive <- NULL
+##chron <- chron[, c("Id_I", "start_date", "enter", "exit", "event", "civil_status", "occupation")]
+##chron$civil_status <- factor(chron$civil_status)
+##chron$occupation <- factor(chron$occupation)
+```
+
+
+# The *personal* file
+
+The *personal* file looks like this:
+
+```{r personal}
+knitr::kable(personal)
+```
+
+We *spread* personal:
+
+```{r spreadpersonal}
+personal <- tidyr::spread_(personal, key_col = "Type", value_col = "Value", convert = TRUE)
+knitr::kable(personal)
+```
+
+# Join information
+
+The final step is to put on the fixed-time information from *personal* to
+*chron*:
+
+```{r joinall}
+indx <- match(chron$Id_I, personal$Id_I)
+vars <- names(personal)[-1]
+for (i in vars){
+    chron[i] <- personal[[i]][indx]
+}
+knitr::kable(chron)
+```
+
+Done!
+
+# Conclusion
+
+This solution put some demand on the input, that is, a great deal has to be done 
+in preparing the *chronicle* and the *personal* files. For instance, in this 
+example, the *NA*s in the column *civil_status* should maybe changed to
+*single* (not married), but how do we know?
+
+
+
 
