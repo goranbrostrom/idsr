@@ -10,6 +10,10 @@ episodes(chronicle, personal, start_event = "Birth", end_event = "Death")
 \item{chronicle}{The Chronicle (time-varying) data frame.}
 
 \item{personal}{The  personal (time-fixed) data frame.}
+
+\item{start_event}{The start event in a survival context.}
+
+\item{end_event}{The terminal event in a survival context.}
 }
 \value{
 An episodes data frame.

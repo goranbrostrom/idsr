@@ -3,6 +3,8 @@
 #' @export
 #' @param chronicle The Chronicle (time-varying) data frame.
 #' @param personal The  personal (time-fixed) data frame.
+#' @param start_event The start event in a survival context.
+#' @param end_event The terminal event in a survival context.
 #' @return An episodes data frame.
 
 episodes <- function(chronicle,
