@@ -115,7 +115,7 @@ Time to clean up *chron*.
 ```{r cleanup}
 chron <- chron[!is.na(chron$present) & (chron$present == "yes"), ]
 chron <- chron[chron$alive == "yes", ]
-remove <- !chron$event & chron$enter == chron$exit
+remove <- !chron$event & !is.na(chron$exit) & (chron$enter == chron$exit)
 chron <- chron[!remove, ]
 chron$present <- chron$date <- chron$Type <- chron$alive <- NULL
 ##chron <- chron[, c("Id_I", "start_date", "enter", "exit", "event", "civil_status", "occupation")]
