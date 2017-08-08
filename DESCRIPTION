@@ -2,8 +2,8 @@ Encoding: UTF-8
 Package: idsr
 Type: Package
 Title: Creates an episodes data frame
-Version: 0.1.1
-Date: 2017-05-22
+Version: 0.1.1.1000
+Date: 2017-08-08
 Authors@R: person("Göran", "Broström", email = "goran.brostrom@umu.se",
             role = c("aut", "cre"))
 Description: From a Chronicle and a Personal data frame, an episodes data frame
