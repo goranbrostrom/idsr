@@ -1,9 +1,10 @@
   #' Create an episodes file from a Chronicle and a VarSetup file.
 #'
-#' @export
+
 #' @param Chronicle The chronicle data frame.
 #' @param VarSetup The VarSetup data frame.
 #' @return An episodes data frame.
+#' @export
 efc <- function(Chronicle, VarSetup){
 
     ## The 'main' function: Calls part1, part2, ... etc
@@ -64,7 +65,7 @@ part3 <- function(vs = VarSetup, ch = Chronicle, keep = FALSE){
     ##all.equal(type.vs, type.ch) # Is this enough? (next row)
     ret <- all(type.ch %in% type.vs)
     ## New abbrewinkel: Cut down on 'Varsetup1':
-    if (!ret) stop("Missing Types in 'Chronicle")
+    if (!ret) stop("Missing Types in 'Chronicle'")
     rem.vs <- type.vs[!(type.vs %in% type.ch)]
     ##cat("rem.vs = ", rem.vs, "\n")
     VarSetup <- vs[!(vs$Type %in% rem.vs), ]
