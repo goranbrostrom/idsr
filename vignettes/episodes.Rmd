@@ -9,7 +9,7 @@ output:
       number_sections: true
 vignette: >
   %\VignetteIndexEntry{Creating episodes}
-  %\VignetteEngine{knitr::knitr}
+  %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
 
@@ -37,7 +37,7 @@ The code writing is exemplified with data from Quaranta (2015).
 
 # The *chronicle* file
 
-```{r get chronichle}
+```{r get_chronichle}
 start_event <- "Birth"
 end_event <- "Death"
 ##load("../data/chronicle.rda")
@@ -115,7 +115,7 @@ Time to clean up *chron*.
 ```{r cleanup}
 chron <- chron[!is.na(chron$present) & (chron$present == "yes"), ]
 chron <- chron[chron$alive == "yes", ]
-remove <- !chron$event & chron$enter == chron$exit
+remove <- !chron$event & !is.na(chron$exit) & (chron$enter == chron$exit)
 chron <- chron[!remove, ]
 chron$present <- chron$date <- chron$Type <- chron$alive <- NULL
 ##chron <- chron[, c("Id_I", "start_date", "enter", "exit", "event", "civil_status", "occupation")]
@@ -132,25 +132,26 @@ The *personal* file looks like this:
 knitr::kable(personal)
 ```
 
-We *spread* personal:
+We *spread* personal and save the result in *per*:
 
 ```{r spreadpersonal}
-personal <- tidyr::spread_(personal, key_col = "Type", value_col = "Value", convert = TRUE)
-knitr::kable(personal)
+per <- tidyr::spread_(personal, key_col = "Type", value_col = "Value", convert = TRUE)
+knitr::kable(per)
 ```
 
 # Join information
 
-The final step is to put on the fixed-time information from *personal* to
-*chron*:
+The final step is to put on the fixed-time information from *per* to
+*chron* and save the result in *epi* (an episodes file):
 
 ```{r joinall}
-indx <- match(chron$Id_I, personal$Id_I)
-vars <- names(personal)[-1]
+indx <- match(chron$Id_I, per$Id_I)
+vars <- names(per)[-1]
+epi <- chron
 for (i in vars){
-    chron[i] <- personal[[i]][indx]
+    epi[i] <- per[[i]][indx]
 }
-knitr::kable(chron)
+knitr::kable(epi)
 ```
 
 Done!
